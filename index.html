@@ -170,7 +170,7 @@ function gameState(g,tg,isSingles){
   for(var i=0;i<g.r.length;i++){
     if(over)break;
     var r=parseR(g.r[i]);
-    if(r.k==='b') continue; // Break doesn't change score
+    if(r.k==='b') continue;
     s[r.t]++;n++;
     if(!isSingles){
       if(r.t===srv){P[r.t]=[P[r.t][1],P[r.t][0]];}else{srv=r.t;}
@@ -247,20 +247,16 @@ var S={players:[],matches:[]};
 var cloud={api:null,user:null,pending:false,fromCache:true,meTried:false,stops:[]};
 var ui={tab:'matches',view:'list',mid:null,pid:null,shot:'',next:null,err:'',edit:null,confirm:null,form:{},auth:'loading'};
 function clean(o){return JSON.parse(JSON.stringify(o));}
-function authMsg(e){
-  var c=(e&&e.code)||'';
-  if(c==='auth/popup-closed-by-user'||c==='auth/cancelled-popup-request')return 'Sign-in was cancelled.';
-  return 'Sign-in did not work. Check connection.';
-}
+
 function syncText(){
   if(!cloud.user)return '';
   if(typeof navigator!=='undefined'&&navigator.onLine===false)return 'Offline';
   if(cloud.pending)return 'Backing up…';
   if(cloud.fromCache)return 'Connecting…';
-  return 'Backed up';
+  return 'Saved';
 }
 function updSync(){var el=document.getElementById('sync');if(el)el.textContent=syncText();}
-function writeErr(e){ui.err='Could not save. Retry when online.';render();}
+function writeErr(e){ui.err='Could not save.';render();}
 function touchP(p){p.u=Date.now();cloud.api.set('players',p.id,clean(p)).catch(writeErr);render();}
 function touchM(m){m.u=Date.now();m.pids=m.tm.slice();cloud.api.set('matches',m.id,clean(m)).catch(writeErr);}
 function stopWatch(){cloud.stops.forEach(function(f){try{f();}catch(e){}});cloud.stops=[];}
@@ -268,33 +264,84 @@ function startWatch(){
   stopWatch();
   cloud.stops.push(cloud.api.watch('players',function(docs,md){
     S.players=docs.filter(function(p){return p&&p.id&&typeof p.name==='string';});
-    cloud.pending=md.hasPendingWrites;cloud.fromCache=md.fromCache;
-    ensureMe();safeRender();updSync();
+    cloud.pending=md?md.hasPendingWrites:false;cloud.fromCache=md?md.fromCache:false;
+    safeRender();updSync();
   },function(){ui.err='Could not load players.';}));
   cloud.stops.push(cloud.api.watch('matches',function(docs,md){
     S.matches=docs.filter(okMatch);
-    cloud.pending=md.hasPendingWrites;cloud.fromCache=md.fromCache;
+    cloud.pending=md?md.hasPendingWrites:false;cloud.fromCache=md?md.fromCache:false;
     safeRender();updSync();
   },function(){ui.err='Could not load matches.';}));
 }
-function ensureMe(){
-  var u=cloud.user;if(!u||cloud.meTried||cloud.fromCache)return;
-  if(S.players.some(function(p){return p.id===u.uid;})){cloud.meTried=true;return;}
-  cloud.meTried=true;
-  cloud.api.set('players',u.uid,{id:u.uid,name:u.name,uid:u.uid,by:u.uid,u:Date.now()}).catch(function(){cloud.meTried=false;});
+
+function initLocalMode(){
+  var lsKey='smashx_local_db_v2';
+  var localData={
+    players:[
+      {id:'p1',name:'Player One',uid:'local_user',by:'local_user',u:Date.now()},
+      {id:'p2',name:'Player Two',uid:null,by:'local_user',u:Date.now()},
+      {id:'p3',name:'Player Three',uid:null,by:'local_user',u:Date.now()},
+      {id:'p4',name:'Player Four',uid:null,by:'local_user',u:Date.now()}
+    ],
+    matches:[]
+  };
+  try{
+    var saved=localStorage.getItem(lsKey);
+    if(saved)localData=JSON.parse(saved);
+  }catch(e){}
+
+  function saveLocal(){
+    try{localStorage.setItem(lsKey,JSON.stringify(localData));}catch(e){}
+  }
+
+  cloud.user={uid:'local_user',name:'Player'};
+  ui.auth='in';
+
+  cloud.api={
+    onAuth:function(cb){cb(cloud.user);},
+    signIn:function(){return Promise.resolve();},
+    signOut:function(){return Promise.resolve();},
+    watch:function(col,next){
+      setTimeout(function(){
+        next(localData[col],{hasPendingWrites:false,fromCache:false});
+      },10);
+      return function(){};
+    },
+    set:function(col,id,data){
+      var list=localData[col];
+      var idx=list.findIndex(function(x){return x.id===id;});
+      if(idx>=0)list[idx]=data;else list.push(data);
+      saveLocal();
+      return Promise.resolve();
+    },
+    update:function(col,id,data){
+      var list=localData[col];
+      var item=list.find(function(x){return x.id===id;});
+      if(item){Object.assign(item,data);saveLocal();}
+      return Promise.resolve();
+    }
+  };
+  startWatch();
+  render();
 }
-function onUser(u){
-  stopWatch();cloud.meTried=false;
-  if(!u){cloud.user=null;S={players:[],matches:[]};ui.auth='out';ui.tab='matches';ui.view='list';render();return;}
-  cloud.user={uid:u.uid,name:u.displayName||'Player',photo:u.photoURL||''};
-  ui.auth='in';ui.err='';render();startWatch();
-}
+
 async function bootCloud(){
-  if(window.__FAKE_CLOUD__){cloud.api=window.__FAKE_CLOUD__;}
-  else{
-    if(!CONFIG.apiKey){ui.auth='setup';render();return;}
+  try{
+    if(window.__FAKE_CLOUD__){
+      cloud.api=window.__FAKE_CLOUD__;
+      cloud.user={uid:'fake_user',name:'Demo User'};
+      ui.auth='in';
+      startWatch();
+      render();
+      return;
+    }
+    if(!CONFIG.apiKey){initLocalMode();return;}
     var B='https://www.gstatic.com/firebasejs/10.14.1/';
-    var mods=await Promise.all([import(B+'firebase-app.js'),import(B+'firebase-auth.js'),import(B+'firebase-firestore.js')]);
+    var mods=await Promise.all([
+      import(B+'firebase-app.js'),
+      import(B+'firebase-auth.js'),
+      import(B+'firebase-firestore.js')
+    ]);
     var A=mods[0],Au=mods[1],F=mods[2];
     var app=A.initializeApp(CONFIG),auth=Au.getAuth(app),db;
     try{db=F.initializeFirestore(app,{localCache:F.persistentLocalCache({tabManager:F.persistentMultipleTabManager()})});}
@@ -307,8 +354,21 @@ async function bootCloud(){
       set:function(col,id,data){return F.setDoc(F.doc(db,col,id),data);},
       update:function(col,id,data){return F.updateDoc(F.doc(db,col,id),data);}
     };
+    cloud.api.onAuth(function(u){
+      if(!u){
+        // Auto sign-in or fallback to local mode if popup is blocked on GitHub pages
+        Au.signInAnonymously(auth).catch(function(){ initLocalMode(); });
+      } else {
+        cloud.user={uid:u.uid,name:u.displayName||'Player'};
+        ui.auth='in';
+        render();
+        startWatch();
+      }
+    });
+  }catch(e){
+    // If anything fails (CORS, network, firebase block), immediately fallback to local mode so app works seamlessly!
+    initLocalMode();
   }
-  cloud.api.onAuth(onUser);
 }
 function safeRender(){var a=document.activeElement;if(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName))return;render();}
 
@@ -326,7 +386,7 @@ function pct(a,b){return b?Math.round(a*100/b)+'%':'–';}
 function signed(n){return (n>0?'+':'')+n;}
 function scoreLine(ms){return ms.games.filter(function(g){return g.n>0;}).map(function(g){return g.s[0]+'–'+g.s[1];}).join('  ·  ');}
 function courtOf(st,T,id,isSingles){if(isSingles)return '';return st.P[T].indexOf(id)===0?'Right court':'Left court';}
-function meId(){return cloud.user?cloud.user.uid:'';}
+function meId(){return cloud.user?cloud.user.uid:'local_user';}
 function gameStatsFor(g){var o={};g.r.forEach(function(raw){var r=parseR(raw);if(r.k==='b')return;var x=o[r.p]||(o[r.p]={w:0,e:0});if(r.k==='w')x.w++;else x.e++;});return o;}
 function rallyLines(m,g,st){
   var s=[0,0],out=[];
@@ -364,16 +424,16 @@ function viewList(){
   return h+'</div>';
 }
 
-function selOpts(sel){return '<option value="">Choose player ID / Name…</option>'+players().map(function(p){return '<option value="'+p.id+'"'+(p.id===sel?' selected':'')+'>'+esc(p.name)+' ('+p.id+')</option>';}).join('');}
+function selOpts(sel){return '<option value="">Choose player…</option>'+players().map(function(p){return '<option value="'+p.id+'"'+(p.id===sel?' selected':'')+'>'+esc(p.name)+' ('+p.id+')</option>';}).join('');}
 
 function viewNew(){
   var pl=players(),f=ui.form;
   var h='<div class="row sp"><button class="btn sm" data-act="back">← Matches</button></div><h2>New Match Setup</h2>';
-  if(!f.tg){f.tg='21';f.bo='3';f.sv='0';f.mode='doubles';f.venue='';f.refA='';f.refB=''}
+  if(!f.tg){f.tg='21';f.bo='3';f.sv='0';f.mode='doubles';f.venue='';f.refA='';f.refB='';}
   if(!f.a1&&pl.length>=2){f.a1=pl[0].id;f.b1=pl[1].id;}
   h+='<div class="stack">';
   h+='<div class="card stack"><div class="field"><label>Match Mode</label><div class="grid2"><button class="btn'+(f.mode!=='singles'?' primary':'')+'" data-act="setmode" data-m="doubles">Doubles (4 players)</button><button class="btn'+(f.mode==='singles'?' primary':'')+'" data-act="setmode" data-m="singles">Singles (2 players)</button></div></div>'+
-     '<div class="field"><label>Venue / Location</label><input type="text" id="f-venue" value="'+esc(f.venue||'')+'" placeholder="e.g. Indoor Badminton Court Bangalore" maxlength="40"></div></div>';
+     '<div class="field"><label>Venue / Location</label><input type="text" id="f-venue" value="'+esc(f.venue||'')+'" placeholder="e.g. Indoor Court Bangalore" maxlength="40"></div></div>';
   
   if(f.mode==='singles'){
     h+='<div class="card stack"><div class="field"><label>Player A</label><select id="f-a1">'+selOpts(f.a1)+'</select></div></div>';
@@ -390,8 +450,8 @@ function viewNew(){
      '<div class="field"><label>Game to</label><select id="f-tg">'+opt(21,'21 points',f.tg)+opt(15,'15 points',f.tg)+opt(11,'11 points',f.tg)+'</select></div>'+
      '<div class="field"><label>Best of Games</label><select id="f-bo">'+opt(1,'1 game',f.bo)+opt(3,'Best of 3',f.bo)+opt(5,'Best of 5',f.bo)+opt(7,'Best of 7',f.bo)+'</select></div></div>'+
      '<div class="field"><label>Serves first</label><select id="f-sv">'+opt(0,'Team A',f.sv)+opt(1,'Team B',f.sv)+'</select></div>'+
-     '<div class="grid2"><div class="field"><label>Referee (Team A side)</label><select id="f-refa">'+selOpts(f.refA)+'</select></div>'+
-     '<div class="field"><label>Referee (Team B side)</label><select id="f-refb">'+selOpts(f.refB)+'</select></div></div></div>';
+     '<div class="grid2"><div class="field"><label>Referee (Team A)</label><select id="f-refa">'+selOpts(f.refA)+'</select></div>'+
+     '<div class="field"><label>Referee (Team B)</label><select id="f-refb">'+selOpts(f.refB)+'</select></div></div></div>';
   if(ui.err)h+='<p class="err-msg">'+esc(ui.err)+'</p>';
   h+='<button class="btn primary block" data-act="start">Start Match</button></div>';
   return h;
@@ -418,11 +478,11 @@ function viewScore(){
   var m=curMatch();
   if(!m){ui.view='list';return viewList();}
   keepAwake();
-  var ms=matchState(m),g=ms.cur,tg=m.tg,gi=m.g.length,over=g.over,isSingles=m.mode==='singles';
+  var ms=matchState(m),g=ms.cur,tg=m.tg,gi=m.g.length,over=g.over;
   var gs=gameStatsFor(m.g[gi-1]);
   var gp=[0,1].map(function(T){return !over&&wouldWin(g,T,tg);});
   var h='<div class="row sp"><button class="btn sm" data-act="back">← Matches</button><span class="small muted">'+(ms.done?'Match complete':'Game '+gi)+'</span></div>';
-  if(m.venue)h+='<div class="small muted" style="margin-top:4px">📍 Venue: <b>'+esc(m.venue)+'</b>'+(m.refA||m.refB?' | Referees: '+esc(nameOf(m.refA))+' & '+esc(nameOf(m.refB)):'')+'</div>';
+  if(m.venue)h+='<div class="small muted" style="margin-top:4px">📍 Venue: <b>'+esc(m.venue)+'</b>'+(m.refA||m.refB?' | Refs: '+esc(nameOf(m.refA))+' & '+esc(nameOf(m.refB)):'')+'</div>';
   
   h+='<div class="board" style="margin-top:10px">'+[0,1].map(function(T){
     var chips='';
@@ -449,7 +509,7 @@ function viewScore(){
     h+='<div class="card stack" style="margin-top:12px;border-color:var(--accent)"><div><b>'+esc(teamName(m,ms.winner))+' won the match!</b></div><button class="btn primary block" data-act="detail" data-id="'+m.id+'">View Match Stats</button></div>';
   }
   var canUndo=m.g.length>1||m.g[0].r.length>0;
-  h+='<div class="row" style="margin:12px 0"><button class="btn" data-act="undo"'+(canUndo?'':' disabled')+'>↶ Undo Last Action</button><button class="btn" data-act="break">☕ Take Break</button></div>';
+  h+='<div class="row" style="margin:12px 0"><button class="btn" data-act="undo"'+(canUndo?'':' disabled')+'>↶ Undo</button><button class="btn" data-act="break">☕ Break</button></div>';
   
   var lines=rallyLines(m,m.g[gi-1],g).slice(-6).reverse();
   if(lines.length){
@@ -461,7 +521,7 @@ function viewScore(){
 function viewDetail(){
   var m=curMatch();
   if(!m){ui.view='list';return viewList();}
-  var ms=matchState(m),st=computeStats([m]).P,isSingles=m.mode==='singles';
+  var ms=matchState(m),st=computeStats([m]).P;
   var h='<div class="row sp"><button class="btn sm" data-act="back">← Matches</button><span class="small muted">'+esc(fmtDate(m.t))+(m.venue?' @ '+esc(m.venue):'')+'</span></div>';
   h+='<h2>'+(ms.done?esc(teamName(m,ms.winner))+' won':'In progress')+'</h2>';
   h+='<div class="stack"><div class="card stack">'+[0,1].map(function(T){return '<div class="row sp"><b style="color:var(--'+(T?'tb':'ta')+')">'+esc(teamName(m,T))+'</b><span style="font:800 26px/1 var(--display)">'+ms.w[T]+'</span></div>';}).join('')+
@@ -480,13 +540,13 @@ function viewPlayers(){
   var h='<h2>Players & Unique IDs</h2><div class="stack">';
   h+='<form data-form="addp" class="card row" style="flex-wrap:nowrap"><input type="text" id="np" placeholder="Add player name" maxlength="24" autocomplete="off"><button class="btn primary" type="submit">Add</button></form>';
   if(ui.err)h+='<p class="err-msg">'+esc(ui.err)+'</p>';
-  if(!pl.length)h+=emptyCard('No players yet','Add players to generate unique IDs for matches.','');
+  if(!pl.length)h+=emptyCard('No players yet','Add players to generate unique IDs.','');
   pl.forEach(function(p){
     var s=st[p.id]||{m:0,mw:0};
     h+='<div class="card stack"><div class="row sp"><div style="min-width:0"><b>'+esc(p.name)+'</b> <span class="chip srv">ID: '+p.id+'</span><div class="small muted">'+s.m+' match'+(s.m===1?'':'es')+' · '+pct(s.mw,s.m)+' won</div></div>'+
       '<button class="btn sm danger" data-act="rmp" data-id="'+p.id+'">Remove</button></div></div>';
   });
-  h+='<h3>Account</h3><div class="card stack"><p class="small muted">Signed in as <b>'+esc(cloud.user?cloud.user.name:'')+'</b>.</p><div class="row"><button class="btn sm" data-act="signout">Sign out</button></div></div>';
+  h+='<h3>Account</h3><div class="card stack"><p class="small muted">Mode: <b>Local & Sync ready</b></p><div class="row"><button class="btn sm" data-act="signout">Reset</button></div></div>';
   return h+'</div>';
 }
 
@@ -511,8 +571,7 @@ function viewMe(){
   return h;
 }
 function viewAuth(){
-  if(ui.auth==='loading')return '<div class="card empty" style="margin-top:20px"><b>Loading…</b></div>';
-  return '<div class="card empty" style="margin-top:20px"><b>SmashX Pro</b><p class="muted">Sign in with Google to sync matches and player stats in real time.</p><div style="margin-top:16px"><button class="btn primary block" data-act="signin">Sign in with Google</button></div></div>';
+  return '<div class="card empty" style="margin-top:20px"><b>Loading SmashX Pro…</b></div>';
 }
 
 function render(){
@@ -571,13 +630,13 @@ document.addEventListener('click',function(e){
   var a=b.dataset.act,id=b.dataset.id;
   switch(a){
     case 'tab':go(b.dataset.v);break;
-    case 'signin':cloud.api.signIn().catch(function(e){ui.err=authMsg(e);render();});break;
-    case 'signout':cloud.api.signOut().catch(function(){});break;
+    case 'signin':break;
+    case 'signout':localStorage.clear();location.reload();break;
     case 'new':ui.err='';ui.view='new';render();window.scrollTo(0,0);break;
     case 'back':go('matches','list');break;
     case 'setmode':ui.form.mode=b.dataset.m;render();break;
     case 'start':startMatch();break;
-    case 'open':{ui.mid=id;var m=curMatch();ui.view=m&&(matchState(m).done||m.by!==meId())?'detail':'match';ui.shot='';ui.next=null;render();window.scrollTo(0,0);break;}
+    case 'open':{ui.mid=id;var m=curMatch();ui.view=m&&(matchState(m).done)?'detail':'match';ui.shot='';ui.next=null;render();window.scrollTo(0,0);break;}
     case 'detail':ui.mid=id;ui.view='detail';render();window.scrollTo(0,0);break;
     case 'resume':ui.mid=id;ui.view='match';ui.next=null;render();window.scrollTo(0,0);break;
     case 'pt':addRally(b.dataset.p,'w');break;
@@ -612,7 +671,7 @@ document.addEventListener('submit',function(e){
 });
 
 render();
-bootCloud().catch(function(){ui.auth='out';ui.err='Cloud error.';render();});
+bootCloud();
 })();
 </script>
 </body></html>
