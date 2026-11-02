@@ -288,7 +288,7 @@ function clone(x){return JSON.parse(JSON.stringify(x));}
 var CONFIG={apiKey:"AIzaSyBDvfwzsRpsc4WALuL14i2SiuQMJXEhlDo",authDomain:"smashx-pro2026.firebaseapp.com",projectId:"smashx-pro2026",storageBucket:"",messagingSenderId:"726099778079",appId:""};
 var S={players:[],matches:[],sessions:[]};
 var cloud={api:null,user:null,pending:false,fromCache:true,meTried:false,stops:[]};
-var ui={tab:'matches',view:'list',mid:null,pid:null,shot:'',next:null,err:'',edit:null,confirm:null,form:{},sessionForm:{},sid:null,auth:'loading'};
+var ui={tab:'matches',view:'list',mid:null,pid:null,shot:'',next:null,err:'',edit:null,confirm:null,form:{},sessionForm:{},sid:null,auth:'ready'};
 function clean(o){return JSON.parse(JSON.stringify(o));}
 function authMsg(e){
 var c=(e&&e.code)||'';
@@ -297,25 +297,27 @@ if(c==='auth/popup-blocked')return 'Pop-up blocked. Allow pop-ups and try again.
 return 'Sign-in did not work. Check internet and try again.';
 }
 function syncText(){
-if(!cloud.user)return '';
+if(!cloud.user)return 'Guest Mode';
 if(cloud.pending)return 'Backing up…';
 if(cloud.fromCache)return 'Connecting…';
 return 'Backed up';
 }
 function updSync(){var el=document.getElementById('sync');if(el)el.textContent=syncText();}
 function writeErr(e){ui.err=(e&&e.code==='permission-denied')?'Permission denied.':'Could not save.';render();}
-function touchP(p){p.u=Date.now();cloud.api.set('players',p.id,clean(p)).catch(writeErr);render();}
+function touchP(p){p.u=Date.now();if(cloud.api)cloud.api.set('players',p.id,clean(p)).catch(writeErr);render();}
 function touchM(m){
 m.u=Date.now();m.pids=(m.tm||[]).slice();
 recordMatchToPermStats(m);
-cloud.api.set('matches',m.id,clean(m)).catch(writeErr);
+if(cloud.api)cloud.api.set('matches',m.id,clean(m)).catch(writeErr);
 }
 function touchSession(x){
 x.u=Date.now();
-return cloud.api.set('sessions',x.id,clean(x)).catch(writeErr);
+if(cloud.api)return cloud.api.set('sessions',x.id,clean(x)).catch(writeErr);
+return Promise.resolve(x);
 }
 function stopWatch(){cloud.stops.forEach(function(f){try{f();}catch(e){}});cloud.stops=[];}
 function startWatch(){
+if(!cloud.api) return;
 stopWatch();
 cloud.stops.push(cloud.api.watch('players',function(docs,md){
 S.players=docs.filter(function(p){return p&&p.id&&typeof p.name==='string';});
@@ -334,22 +336,22 @@ cloud.pending=md.hasPendingWrites;cloud.fromCache=md.fromCache;safeRender();updS
 },function(){ui.err='Could not load sessions.';}));
 }
 function ensureMe(){
-var u=cloud.user;if(!u||cloud.meTried||cloud.fromCache)return;
+var u=cloud.user;if(!u||cloud.meTried||cloud.fromCache||!cloud.api)return;
 if(S.players.some(function(p){return p.id===u.uid;})){cloud.meTried=true;return;}
 cloud.meTried=true;
 cloud.api.set('players',u.uid,{id:u.uid,name:u.name,uid:u.uid,by:u.uid,u:Date.now()}).catch(function(){cloud.meTried=false;});
 }
 function onUser(u){
 stopWatch();cloud.meTried=false;
-if(!u){cloud.user=null;S={players:[],matches:[],sessions:[]};ui.auth='out';ui.tab='matches';ui.view='list';render();return;}
+if(!u){cloud.user=null;ui.auth='ready';render();return;}
 cloud.user={uid:u.uid,name:u.displayName||'Player',photo:u.photoURL||''};
 ui.auth='in';ui.err='';render();startWatch();
 }
 async function bootCloud(){
 if(window.FAKE_CLOUD){cloud.api=window.FAKE_CLOUD;}
 else{
-if(!CONFIG.apiKey){ui.auth='setup';render();return;}
+if(!CONFIG.apiKey){ui.auth='ready';render();return;}
+try {
 var B='https://www.gstatic.com/firebasejs/10.14.1/';
 var mods=await Promise.all([import(B+'firebase-app.js'),import(B+'firebase-auth.js'),import(B+'firebase-firestore.js')]);
-var A=mods[0],Au=mods[1],F=mods[2];
-var app=A.initializeApp(CONFIG),auth=Au.ge
+var A=mods[0],Au=mods[1],F=mods
