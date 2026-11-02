@@ -155,7 +155,7 @@ summary{font-weight:700;cursor:pointer;min-height:28px}
       <img src="logo-mark.png" alt="" width="34" height="34" style="border-radius:8px;flex:none">
       SmashX
     </div>
-    <div class="sync" id="sync"></div><span id="build" style="font-size:10px;color:var(--muted)">FIX-2026-11-02-C</span>
+    <div class="sync" id="sync"></div><span style="font-size:10px;color:var(--muted)">ONLINE-FRESH-D</span>
   </header>
   <main id="view"></main>
 </div>
@@ -170,6 +170,10 @@ summary{font-weight:700;cursor:pointer;min-height:28px}
 <script>
 (function(){
 'use strict';
+
+function clearTransientBrowserData(){try{sessionStorage.clear();}catch(e){} }
+clearTransientBrowserData();
+window.addEventListener('pagehide',clearTransientBrowserData);
 /*CORE*/
 var SHOTS=[['s','Smash'],['d','Drop'],['n','Net'],['v','Drive'],['l','Lob'],['x','Serve']];
 var SHOT={};SHOTS.forEach(function(x){SHOT[x[0]]=x[1];});
@@ -327,8 +331,7 @@ async function bootCloud(){
     var mods=await Promise.all([import(B+'firebase-app.js'),import(B+'firebase-auth.js'),import(B+'firebase-firestore.js')]);
     var A=mods[0],Au=mods[1],F=mods[2];
     var app=A.initializeApp(CONFIG),auth=Au.getAuth(app),db;
-    try{db=F.initializeFirestore(app,{localCache:F.persistentLocalCache({tabManager:F.persistentMultipleTabManager()})});}
-    catch(e){db=F.getFirestore(app);}
+    db=F.getFirestore(app);
     cloud.api={
       onAuth:function(cb){return Au.onAuthStateChanged(auth,cb);},
       signIn:function(){var p=new Au.GoogleAuthProvider();p.setCustomParameters({prompt:'select_account'});return Au.signInWithPopup(auth,p);},
@@ -482,7 +485,7 @@ function viewScore(){
   if(lines.length){
     h+='<h3>Last points</h3><div class="card"><ul class="log">'+lines.map(function(l){return '<li><span class="s '+(l.t===0?'ta':'tb')+'">'+l.sc+'</span><span>'+esc(l.text)+'</span></li>';}).join('')+'</ul></div>';
   }
-  h+='<div class="row" style="margin-top:10px">'+((canManage(m)||canScore(m))&&m.st!=='stopped'?(ui.confirm==='stop:'+m.id?'<button class="btn danger sm" data-act="stopmatch" data-id="'+m.id+'">Tap again to stop</button>':'<button class="btn danger sm" data-act="stopmatch" data-id="'+m.id+'">Stop</button>'):'')+(canDelete(m)?(ui.confirm==='del:'+m.id?'<button class="btn danger sm" data-act="delmatch" data-id="'+m.id+'">Confirm delete</button>':'<button class="iconbtn" data-act="delmatch" data-id="'+m.id+'" title="Delete match">🗑</button>'):'')+'</div>';return h;
+  h+='<div class="row" style="margin-top:10px">'+((canManage(m)||canScore(m))&&m.st!=='stopped'?(ui.confirm==='stop:'+m.id?'<button class="btn danger sm" data-act="stopmatch" data-id="'+m.id+'">Tap again to stop</button>':'<button class="btn danger sm" data-act="stopmatch" data-id="'+m.id+'">Stop</button>'):'')+(canDelete(m)?(ui.confirm==='del:'+m.id?'<button class="btn danger sm" data-act="delmatch" data-id="'+m.id+'">Confirm delete</button>':'<button class="iconbtn" data-act="delmatch" data-id="'+m.id+'" title="Delete match">5d1</button>'):'')+'</div>';return h;
 }
 
 function viewDetail(){
@@ -502,7 +505,8 @@ function viewDetail(){
     h+='<details><summary>Game '+(i+1)+' · '+gst.s[0]+'–'+gst.s[1]+'</summary><ul class="log" style="margin-top:8px">'+
       lines.map(function(l){return '<li><span class="s '+(l.t===0?'ta':'tb')+'">'+l.sc+'</span><span>'+esc(l.text)+'</span></li>';}).join('')+'</ul></details>';
   });
-  h+='<div class="row">'+(canScore(m)&&!ms.done?'<button class="btn primary" data-act="resume" data-id="'+m.id+'">Resume scoring</button>':'<span class="small muted">'+(ms.done?'Match complete':'Live score · view only')+'</span>')+(canDelete(m)?(ui.confirm==='del:'+m.id?'<button class="btn danger" data-act="delmatch" data-id="'+m.id+'">Confirm delete</button>':'<button class="iconbtn" data-act="delmatch" data-id="'+m.id+'" title="Delete match">🗑</button>'):'')+'</div></div>';
+  h+=m.by!==meId()?'<p class="small muted">Scored by someone else. You can watch it live but not change it.</p></div>':'<div class="row"><button class="btn primary" data-act="resume" data-id="'+m.id+'">'+(ms.done?'Edit scoring':'Resume scoring')+'</button>'+
+    (ui.confirm==='del:'+m.id?'<button class="btn danger" data-act="delmatch" data-id="'+m.id+'">Tap again to delete</button>':''+((canManage(m)||canScore(m))&&m.st!=='stopped'?'<button class="btn danger" data-act="stopmatch" data-id="'+m.id+'">Stop match</button>':'')+(canDelete(m)?'<button class="iconbtn" title="Delete permanently" aria-label="Delete permanently" data-act="delmatch" data-id="'+m.id+'">🗑</button>':'')+'')+'</div></div>';
   return h;
 }
 
@@ -526,7 +530,7 @@ function viewPlayers(){
     }
   });
   if(hasExamples())h+='<button class="btn sm" data-act="rmsample">Remove sample data</button>';
-  h+='<h3>Account</h3><div class="card stack"><p class="small muted">Signed in as <b>'+esc(cloud.user?cloud.user.name:'')+'</b>. Everything is backed up to your account and shared with the group.</p><div class="row"><button class="btn sm" data-act="signout">Sign out</button></div></div>';
+  h+='<h3>Account</h3><div class="card stack"><p class="small muted">Signed in as <b>'+esc(cloud.user?cloud.user.name:'')+'</b>'+(cloud.user&&cloud.user.email?' · '+esc(cloud.user.email):'')+(isAdmin()?' · Admin':'')+'. Everything is backed up to your account and shared with the group.</p><div class="row"><button class="btn sm" data-act="signout">Sign out</button></div></div>';
   h+='<p class="small muted">Tip: add a friend who has not signed up as a Guest. When they sign in, they tap "This is me" on their name and all their past stats join their account.</p>';
   return h+'</div>';
 }
@@ -662,7 +666,7 @@ function okMatch(m){return !!(m&&m.id&&!m.del&&(m.tm&&[2,4].indexOf(m.tm.length)
 function canManage(m){return isAdmin()||!!(cloud.user&&m.by===cloud.user.uid);}
 function canDelete(m){return isAdmin()||canManage(m);}
 function canScore(m){if(isAdmin())return true;var u=meId();if(!u||m.st==='stopped'||m.st==='cancelled')return false;if(m.refUid)return m.refUid===u;return m.by===u;}
-async function permanentDelete(m){if(!canDelete(m)){ui.err='Only the match creator or admin can delete this match.';render();return;}try{await cloud.api.del('matches',m.id);S.matches=S.matches.filter(function(x){return x.id!==m.id;});ui.mid=null;go('matches','list');}catch(e){ui.err=(e&&e.code==='permission-denied')?'Firebase denied match deletion for this account.':'Match deletion failed.';render();}}
+async function permanentDelete(m){if(!canDelete(m)){ui.err='Only the match creator or admin can delete this match.';render();return;}try{await cloud.api.del('matches',m.id);S.matches=S.matches.filter(function(x){return x.id!==m.id;});ui.mid=null;go('matches','list');}catch(e){ui.err=(e&&e.code==='permission-denied')?'Firebase denied delete. Signed-in email: '+(cloud.user&&cloud.user.email?cloud.user.email:'unknown'):'Could not delete match.';render();}}
 function stopMatch(m){if(!canManage(m)&&!canScore(m)){ui.err='Only the creator, assigned referee or admin can stop this match.';render();return;}m.st='stopped';m.stopReason=(prompt('Reason for stopping (optional):')||'').trim();m.stoppedAt=Date.now();touchM(m);render();}
 function selPlayers(v){return '<option value="">Choose…</option>'+players().map(function(p){return '<option value="'+p.id+'"'+(p.id===v?' selected':'')+'>'+esc(p.name)+'</option>';}).join('');}
 function registeredOpts(v){return '<option value="">Creator scores</option>'+players().filter(function(p){return p.uid;}).map(function(p){return '<option value="'+esc(p.uid)+'"'+(p.uid===v?' selected':'')+'>'+esc(p.name)+'</option>';}).join('');}
@@ -682,44 +686,7 @@ function fairFour(x){var mem=(x.members||[]).slice(),hist=x.history||{},last=x.l
 function splitTeams(x,four){if(four.length<4)return [four.slice(0,2),four.slice(2)];var h=x.history||{},best=null,score=1e9;for(var i=0;i<12;i++){var a=four.slice().sort(function(){return Math.random()-.5}),pairs=[[a[0],a[1]],[a[2],a[3]]],sc=0;pairs.forEach(function(z){var k=z.slice().sort().join('+');sc+=(x.pairs&&x.pairs[k])||0;});if(sc<score){score=sc;best=pairs;}}return best;}
 function viewSessions(){if(ui.view==='session'&&ui.sid)return viewSession();if(ui.view==='newsession')return viewNewSession();var list=S.sessions.filter(function(x){return x.visibility==='public'||x.by===meId()||(x.members||[]).indexOf(meId())>=0||(x.refUids||[]).indexOf(meId())>=0||isAdmin();});return '<div class="row sp"><h2>Sessions</h2><div class="row"><button class="btn sm" data-act="joinsession">Join private</button><button class="btn primary sm" data-act="newsession">Create session</button></div></div><p class="note">Public sessions appear automatically. For a private session, tap Join private and enter its code.</p>'+(list.length?list.map(function(x){return '<article class="card mcard"><div class="row sp"><div><h3>'+esc(x.name)+'</h3><div class="muted">'+esc(x.date||'')+' · '+esc(x.time||'')+' · '+esc(x.venue||'Venue not set')+'</div><div class="mini">'+(x.visibility||'private')+' · '+(x.members||[]).length+' players · '+x.id+'</div></div><button class="btn sm" data-act="opensession" data-id="'+x.id+'">Open</button></div></article>';}).join(''):emptyCard('No sessions','Create a session or join a private session using its code.','<button class="btn primary" data-act="newsession">Create session</button>'));}
 function viewNewSession(){var f=ui.sessionForm||{};return '<div class="row sp"><h2>New session</h2><button class="btn sm" data-act="backsessions">Cancel</button></div><div class="card stack"><div class="field"><label>Session name</label><input id="s-name" value="'+esc(f.name||'')+'"></div><div class="grid2"><div class="field"><label>Date</label><input id="s-date" type="date" value="'+esc(f.date||'')+'"></div><div class="field"><label>Time</label><input id="s-time" type="time" value="'+esc(f.time||'')+'"></div></div><div class="field"><label>Venue</label><input id="s-venue" value="'+esc(f.venue||'')+'"></div><div class="field"><label>Visibility</label><select id="s-vis"><option value="private">Private</option><option value="public">Public</option></select></div><div class="field"><label>Players</label><div>'+players().map(function(p){return '<label class="session-player"><span>'+esc(p.name)+'</span><input type="checkbox" class="s-member" value="'+p.id+'"></label>';}).join('')+'</div></div><div class="field"><label>Additional referee</label><select id="s-ref">'+registeredOpts('')+'</select></div><button class="btn primary block" data-act="createsession">Create session</button></div>';}
-function viewSession(){var x=S.sessions.find(function(z){return z.id===ui.sid;});if(!x)return emptyCard('Session not found','It may have been deleted.','<button class="btn" data-act="backsessions">Back</button>');var four=x.nextFour&&x.nextFour.length?x.nextFour:fairFour(x),teams=x.nextTeams||splitTeams(x,four),can=sessionMine(x);return '<div class="row sp"><div><h2>'+esc(x.name)+'</h2><div class="muted">'+esc(x.date||'')+' · '+esc(x.time||'')+' · '+esc(x.venue||'Venue not set')+'</div>'+(x.visibility==='private'?'<div class="status-pill">Private code: '+esc(x.joinCode||x.id)+'</div>':'<div class="status-pill">Public session · live viewing</div>')+'</div><button class="btn sm" data-act="backsessions">Back</button></div><div class="card"><h3>Suggested next match</h3><div class="grid2"><div><b>Team A</b><p>'+teams[0].map(nameOf).join(' & ')+'</p></div><div><b>Team B</b><p>'+teams[1].map(nameOf).join(' & ')+'</p></div></div><div class="waiting"><span class="status-pill">Waiting: '+(x.members||[]).filter(function(id){return four.indexOf(id)<0;}).map(nameOf).join(', ')+'</span></div>'+(can?'<div class="session-actions row"><button class="btn sm" data-act="randomteams">Randomize</button><button class="btn sm" data-act="editlineup">Change players</button><button class="btn primary sm" data-act="startsessionmatch">Start match</button></div>':'')+'</div>'+((can&&(x.pending||[]).length)?'<div class="card"><h3>Join requests</h3>'+(x.pending||[]).map(function(u){var pp=players().find(function(q){return q.uid===u||q.id===u;});return '<div class="session-player"><b>'+esc(pp?pp.name:u)+'</b><div class="row"><button class="btn sm primary" data-act="approvejoin" data-id="'+u+'">Approve</button><button class="btn sm" data-act="rejectjoin" data-id="'+u+'">Reject</button></div></div>';}).join('')+'</div>':'')+'<div class="card"><h3>Session players</h3>'+(x.members||[]).map(function(id){var z=(x.history||{})[id]||{};return '<div class="session-player"><span>'+esc(nameOf(id))+'</span><span class="mini">Played '+(z.played||0)+' · consecutive '+(z.consec||0)+'</span></div>';}).join('')+'</div>'+(can?'<div class="card"><button class="btn danger block" data-act="delsession" data-id="'+x.id+'">'+(ui.confirm==='ds:'+x.id?'Confirm delete session':'Delete session')+'</button></div>':'');}
-
-
-document.addEventListener('click',function(e){
-  var b=e.target.closest('[data-act]');if(!b||b.disabled)return;
-  var a=b.dataset.act,id=b.dataset.id;
-  if(['open','resume','pt','er','delmatch','opensession','delsession'].indexOf(a)<0)return;
-  e.preventDefault();e.stopImmediatePropagation();
-  if(a==='open'||a==='resume'){
-    var m=S.matches.find(function(x){return x.id===id&&!x.del;});
-    if(!m){ui.err='Match not found.';render();return;}
-    ui.mid=m.id;ui.shot='';ui.next=null;ui.err='';
-    ui.view=canScore(m)&&!matchState(m).done?'match':'detail';
-    render();window.scrollTo(0,0);return;
-  }
-  if(a==='opensession'){
-    var sx=S.sessions.find(function(x){return x.id===id&&!x.del;});
-    if(!sx){ui.err='Session not found.';render();return;}
-    ui.tab='sessions';ui.sid=id;ui.view='session';ui.err='';render();window.scrollTo(0,0);return;
-  }
-  if(a==='pt'||a==='er'){
-    var m=curMatch();if(!m){ui.err='Open a match first.';render();return;}
-    if(!canScore(m)){ui.err='Only the creator, assigned referee or admin can score.';render();return;}
-    addRally(b.dataset.p,a==='pt'?'w':'e');return;
-  }
-  if(a==='delmatch'){
-    var m=S.matches.find(function(x){return x.id===id&&!x.del;});if(!m)return;
-    if(!canDelete(m)){ui.err='Only the match creator or admin can delete.';render();return;}
-    if(ui.confirm!=='del:'+id){ui.confirm='del:'+id;render();return;}
-    ui.confirm=null;permanentDelete(m);return;
-  }
-  if(a==='delsession'){
-    var sx=S.sessions.find(function(x){return x.id===id&&!x.del;});if(!sx)return;
-    if(!sessionMine(sx)){ui.err='Only the organiser, referee or admin can delete this session.';render();return;}
-    if(ui.confirm!=='ds:'+id){ui.confirm='ds:'+id;render();return;}
-    cloud.api.del('sessions',id).then(function(){S.sessions=S.sessions.filter(function(x){return x.id!==id;});ui.sid=null;ui.confirm=null;ui.view='sessions';render();}).catch(function(err){ui.err=(err&&err.code==='permission-denied')?'Firebase denied session deletion for this account.':'Session deletion failed.';render();});
-  }
-},true);
+function viewSession(){var x=S.sessions.find(function(z){return z.id===ui.sid;});if(!x)return emptyCard('Session not found','It may have been deleted.','<button class="btn" data-act="backsessions">Back</button>');var four=x.nextFour&&x.nextFour.length?x.nextFour:fairFour(x),teams=x.nextTeams||splitTeams(x,four),can=sessionMine(x);return '<div class="row sp"><div><h2>'+esc(x.name)+'</h2><div class="muted">'+esc(x.date||'')+' · '+esc(x.time||'')+' · '+esc(x.venue||'Venue not set')+'</div>'+(x.visibility==='private'?'<div class="status-pill">Private code: '+esc(x.joinCode||x.id)+'</div>':'<div class="status-pill">Public session · live viewing</div>')+'</div><button class="btn sm" data-act="backsessions">Back</button></div><div class="card"><h3>Suggested next match</h3><div class="grid2"><div><b>Team A</b><p>'+teams[0].map(nameOf).join(' & ')+'</p></div><div><b>Team B</b><p>'+teams[1].map(nameOf).join(' & ')+'</p></div></div><div class="waiting"><span class="status-pill">Waiting: '+(x.members||[]).filter(function(id){return four.indexOf(id)<0;}).map(nameOf).join(', ')+'</span></div>'+(can?'<div class="session-actions row"><button class="btn sm" data-act="randomteams">Randomize</button><button class="btn sm" data-act="editlineup">Change players</button><button class="btn primary sm" data-act="startsessionmatch">Start match</button></div>':'')+'</div>'+((can&&(x.pending||[]).length)?'<div class="card"><h3>Join requests</h3>'+(x.pending||[]).map(function(u){var pp=players().find(function(q){return q.uid===u||q.id===u;});return '<div class="session-player"><b>'+esc(pp?pp.name:u)+'</b><div class="row"><button class="btn sm primary" data-act="approvejoin" data-id="'+u+'">Approve</button><button class="btn sm" data-act="rejectjoin" data-id="'+u+'">Reject</button></div></div>';}).join('')+'</div>':'')+'<div class="card"><h3>Session players</h3>'+(x.members||[]).map(function(id){var z=(x.history||{})[id]||{};return '<div class="session-player"><span>'+esc(nameOf(id))+'</span><span class="mini">Played '+(z.played||0)+' · consecutive '+(z.consec||0)+'</span></div>';}).join('')+'</div>';}
 
 document.addEventListener('click',function(e){
   var b=e.target.closest('[data-act]');if(!b||b.disabled)return;
@@ -741,9 +708,9 @@ document.addEventListener('click',function(e){
     case 'new':ui.err='';ui.view='new';render();window.scrollTo(0,0);break;
     case 'back':if(ui.tab==='stats')go('stats','stats');else go('matches','list');break;
     case 'start':startMatch();break;
-    case 'open':{ui.mid=id;var m=curMatch();ui.view=m&&(matchState(m).done||m.by!==meId())?'detail':'match';ui.shot='';ui.next=null;render();window.scrollTo(0,0);break;}
+    case 'open':{var m=S.matches.find(function(x){return x.id===id&&!x.del;});if(!m){ui.err='Match not found. Data was refreshed from Firebase.';render();break;}ui.mid=m.id;ui.view=canScore(m)&&!matchState(m).done?'match':'detail';ui.shot='';ui.next=null;ui.err='';render();window.scrollTo(0,0);break;}
     case 'detail':ui.mid=id;ui.view='detail';render();window.scrollTo(0,0);break;
-    case 'resume':ui.mid=id;ui.view='match';ui.next=null;render();window.scrollTo(0,0);break;
+    case 'resume':{var m=S.matches.find(function(x){return x.id===id&&!x.del;});if(!m){ui.err='Match not found.';render();break;}if(!canScore(m)){ui.err='This account has live view only. Creator, assigned referee or admin can score.';ui.view='detail';render();break;}ui.mid=m.id;ui.view='match';ui.next=null;ui.err='';render();window.scrollTo(0,0);break;}
     case 'pt':addRally(b.dataset.p,'w');break;
     case 'er':addRally(b.dataset.p,'e');break;
     case 'shot':ui.shot=ui.shot===b.dataset.s?'':b.dataset.s;render();break;
@@ -793,7 +760,7 @@ document.addEventListener('visibilitychange',function(){
 });
 
 render();
-if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){r.unregister();});}).catch(function(){});}if(window.caches){caches.keys().then(function(keys){keys.forEach(function(k){caches.delete(k);});}).catch(function(){});}
+if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){r.unregister();});}).catch(function(){});}if(window.caches){caches.keys().then(function(ks){ks.forEach(function(k){caches.delete(k);});}).catch(function(){});}
 bootCloud().catch(function(){ui.auth='out';ui.err='Could not reach Google. Check your internet and refresh.';render();});
 })();
 </script>
