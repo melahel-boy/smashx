@@ -148,10 +148,6 @@ summary{font-weight:700;cursor:pointer;min-height:28px}
 .iconbtn{width:48px;height:48px;min-width:48px;border:1px solid var(--line);border-radius:12px;background:var(--surface2);color:var(--bad);font-size:20px;font-weight:800}.status-pill{font-size:12px;font-weight:800;padding:7px 9px;border:1px solid var(--line);border-radius:999px;color:var(--muted)}
 .waiting{display:flex;gap:6px;flex-wrap:wrap}.session-player{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 0;border-bottom:1px solid var(--line)}.session-player:last-child{border-bottom:0}.mini{font-size:11px;color:var(--muted)}
 @media(max-width:520px){.grid3{grid-template-columns:1fr}.session-actions{display:grid;grid-template-columns:1fr 1fr}.session-actions .btn{width:100%}}
-
-/* Stability audit additions */
-.session-match{display:grid;gap:8px}.pid{font:700 12px/1 var(--display);letter-spacing:.08em;color:var(--muted)}
-.breakbox{border:1px solid var(--hi);background:var(--surface);border-radius:12px;padding:10px}.taplock{pointer-events:none;opacity:.6}
 </style></head><body>
 <div class="wrap">
   <header class="hd">
@@ -315,7 +311,7 @@ function ensureMe(){
   var u=cloud.user;if(!u||cloud.meTried||cloud.fromCache)return;
   if(S.players.some(function(p){return p.id===u.uid;})){cloud.meTried=true;return;}
   cloud.meTried=true;
-  cloud.api.set('players',u.uid,{id:u.uid,playerId:'SX-'+u.uid.slice(0,6).toUpperCase(),name:u.name,uid:u.uid,by:u.uid,u:Date.now()}).catch(function(){cloud.meTried=false;});
+  cloud.api.set('players',u.uid,{id:u.uid,name:u.name,uid:u.uid,by:u.uid,u:Date.now()}).catch(function(){cloud.meTried=false;});
 }
 function onUser(u){
   stopWatch();cloud.meTried=false;
@@ -340,7 +336,6 @@ async function bootCloud(){
       watch:function(col,next,err){return F.onSnapshot(F.collection(db,col),{includeMetadataChanges:true},function(snap){next(snap.docs.map(function(d){return d.data();}),snap.metadata);},err);},
       set:function(col,id,data){return F.setDoc(F.doc(db,col,id),data);},
       update:function(col,id,data){return F.updateDoc(F.doc(db,col,id),data);},
-      del:function(col,id){return F.deleteDoc(F.doc(db,col,id));},
       byCode:async function(code){var q=F.query(F.collection(db,'sessions'),F.where('joinCode','==',code),F.limit(1)),x=await F.getDocs(q);return x.empty?null:x.docs[0].data();},
       del:function(col,id){return F.deleteDoc(F.doc(db,col,id));}
     };
@@ -481,7 +476,7 @@ function viewScore(){
     h+='<div class="card stack" style="margin-top:12px;border-color:var(--accent)"><div><b>'+esc(teamName(m,ms.winner))+' won the match</b> <span class="muted">'+ms.w[0]+'–'+ms.w[1]+'</span></div><button class="btn primary block" data-act="detail" data-id="'+m.id+'">See player stats</button></div>';
   }
   var canUndo=m.g.length>1||m.g[0].r.length>0;
-  h+=breakPanel(m)+(lastPointGap(m)?'<p class="small muted">Time since previous point: '+fmtClock(lastPointGap(m))+'</p>':'')+'<div class="row" style="margin:12px 0"><button class="btn" data-act="undo"'+(canUndo?'':' disabled')+'>↶ Undo last point</button></div>';
+  h+='<div class="row" style="margin:12px 0"><button class="btn" data-act="undo"'+(canUndo?'':' disabled')+'>↶ Undo last point</button></div>';
   var lines=rallyLines(m,m.g[gi-1],g).slice(-6).reverse();
   if(lines.length){
     h+='<h3>Last points</h3><div class="card"><ul class="log">'+lines.map(function(l){return '<li><span class="s '+(l.t===0?'ta':'tb')+'">'+l.sc+'</span><span>'+esc(l.text)+'</span></li>';}).join('')+'</ul></div>';
@@ -506,15 +501,19 @@ function viewDetail(){
     h+='<details><summary>Game '+(i+1)+' · '+gst.s[0]+'–'+gst.s[1]+'</summary><ul class="log" style="margin-top:8px">'+
       lines.map(function(l){return '<li><span class="s '+(l.t===0?'ta':'tb')+'">'+l.sc+'</span><span>'+esc(l.text)+'</span></li>';}).join('')+'</ul></details>';
   });
-  h+=m.by!==meId()?'<p class="small muted">Scored by someone else. You can watch it live but not change it.</p></div>':'<div class="row"><button class="btn primary" data-act="resume" data-id="'+m.id+'">'+(ms.done?'Edit scoring':'Resume scoring')+'</button>'+
-    (ui.confirm==='del:'+m.id?'<button class="btn danger" data-act="delmatch" data-id="'+m.id+'">Tap again to delete</button>':''+((canManage(m)||canScore(m))&&m.st!=='stopped'?'<button class="btn danger" data-act="stopmatch" data-id="'+m.id+'">Stop match</button>':'')+(canDelete(m)?'<button class="iconbtn" title="Delete permanently" aria-label="Delete permanently" data-act="delmatch" data-id="'+m.id+'">🗑</button>':'')+'')+'</div></div>';
+  h+='<div class="row">';
+  if(canScore(m)&&!ms.done)h+='<button class="btn primary" data-act="resume" data-id="'+m.id+'">Resume scoring</button>';
+  else h+='<span class="small muted">'+(ms.done?'Match complete':'Live score · view only')+'</span>';
+  if((canManage(m)||canScore(m))&&m.st!=='stopped')h+='<button class="btn danger" data-act="stopmatch" data-id="'+m.id+'">Stop match</button>';
+  if(canDelete(m))h+=(ui.confirm==='del:'+m.id?'<button class="btn danger" data-act="delmatch" data-id="'+m.id+'">Confirm permanent delete</button>':'<button class="iconbtn" title="Delete match" aria-label="Delete match" data-act="delmatch" data-id="'+m.id+'">🗑</button>');
+  h+='</div></div>';
   return h;
 }
 
 function viewPlayers(){
   var pl=players(),st=computeStats(liveMatches()).P;
   var h='<h2>Players</h2><div class="stack">';
-  h+='<form data-form="addp" class="card row" style="flex-wrap:nowrap"><input type="text" id="np" placeholder="Add player name or search ID" maxlength="24" autocomplete="off" aria-label="Player name"><button class="btn primary" type="submit">Add</button></form>';
+  h+='<form data-form="addp" class="card row" style="flex-wrap:nowrap"><input type="text" id="np" placeholder="Add a player" maxlength="24" autocomplete="off" aria-label="Player name"><button class="btn primary" type="submit">Add</button></form>';
   if(ui.err)h+='<p class="err-msg">'+esc(ui.err)+'</p>';
   if(!pl.length)h+=emptyCard('No players yet','Type a name above. You need four for a doubles match.','');
   pl.forEach(function(p){
@@ -527,7 +526,7 @@ function viewPlayers(){
       var acts=(!p.uid?'<button class="btn sm primary" data-act="claim" data-id="'+p.id+'">This is me</button>':'')+
         (mine?'<button class="btn sm" data-act="ren" data-id="'+p.id+'">Rename</button>':'')+
         (mine&&p.id!==meId()?(ui.confirm==='rm:'+p.id?'<button class="btn sm danger" data-act="rmp" data-id="'+p.id+'">Confirm</button>':'<button class="btn sm danger" data-act="rmp" data-id="'+p.id+'">Remove</button>'):'');
-      h+='<div class="card stack"><div class="row sp"><div style="min-width:0"><b>'+esc(p.name)+'</b> <span class="pid">'+esc(p.playerId||('SX-'+p.id.slice(0,6).toUpperCase()))+'</span> '+tag+'<div class="small muted">'+s.m+' match'+(s.m===1?'':'es')+' · '+pct(s.mw,s.m)+' won</div></div></div>'+(acts?'<div class="row">'+acts+'</div>':'')+'</div>';
+      h+='<div class="card stack"><div class="row sp"><div style="min-width:0"><b>'+esc(p.name)+'</b> '+tag+'<div class="small muted">'+s.m+' match'+(s.m===1?'':'es')+' · '+pct(s.mw,s.m)+' won</div></div></div>'+(acts?'<div class="row">'+acts+'</div>':'')+'</div>';
     }
   });
   if(hasExamples())h+='<button class="btn sm" data-act="rmsample">Remove sample data</button>';
@@ -622,15 +621,15 @@ function go(tab,view){ui.tab=tab;ui.view=view||(tab==='matches'?'list':tab==='st
 
 /* ---------- actions ---------- */
 function addRally(pid,kind){
-  var m=curMatch();if(!m)return;if(actionBusy)return;if(!canScore(m)){ui.err='Only the assigned referee, creator or admin can score.';render();return;}
-  var ms=matchState(m);if(ms.cur.over)return;var ab=(m.breaks||[]).slice(-1)[0];if(ab&&ab.end==null){ui.err='End the active break before adding a point.';render();return;}actionBusy=true;setTimeout(function(){actionBusy=false;},450);
-  var T=m.tm.indexOf(pid)<2?0:1;
+  var m=curMatch();if(!m)return;if(!canScore(m)){ui.err='Only the assigned referee, creator or admin can score.';render();return;}
+  var ms=matchState(m);if(ms.cur.over)return;
+  var T=matchSize(m)===1?(m.tm.indexOf(pid)===0?0:1):(m.tm.indexOf(pid)<2?0:1);
   var scoring=kind==='w'?T:1-T;
   m.g[m.g.length-1].r.push(scoring+':'+pid+':'+kind+':'+(ui.shot||'')+':'+Date.now());
   ui.shot='';buzz();touchM(m);render();
 }
 function undo(){
-  var m=curMatch();if(!m)return;
+  var m=curMatch();if(!m||!canScore(m)){ui.err='Only the creator, assigned referee or admin can change the score.';render();return;}
   var g=m.g[m.g.length-1];
   if(!g.r.length&&m.g.length>1){m.g.pop();g=m.g[m.g.length-1];}
   if(g.r.length)g.r.pop();
@@ -638,10 +637,9 @@ function undo(){
 }
 function addPlayer(name){
   name=(name||'').trim();
-  if(/^SX-/i.test(name)){var found=players().find(function(p){return playerIdOf(p).toLowerCase()===name.toLowerCase();});if(found){ui.pid=found.id;ui.tab='stats';ui.view='player';render();return true;}ui.err='Player ID not found.';return false;}
   if(!name){ui.err='Type a name first.';return false;}
   if(players().some(function(p){return p.name.toLowerCase()===name.toLowerCase();})){ui.err=name+' is already on the list.';return false;}
-  var nid=uid(),p={id:nid,playerId:'SX-'+nid.toUpperCase(),name:name,uid:null,by:meId(),u:Date.now()};S.players.push(p);touchP(p);ui.err='';return true;
+  var p={id:uid(),name:name,uid:null,by:meId(),u:Date.now()};S.players.push(p);touchP(p);ui.err='';return true;
 }
 function startMatch(){
   readForm();
@@ -668,7 +666,7 @@ function okMatch(m){return !!(m&&m.id&&!m.del&&(m.tm&&[2,4].indexOf(m.tm.length)
 function canManage(m){return isAdmin()||!!(cloud.user&&m.by===cloud.user.uid);}
 function canDelete(m){return isAdmin()||canManage(m);}
 function canScore(m){if(isAdmin())return true;var u=meId();if(!u||m.st==='stopped'||m.st==='cancelled')return false;if(m.refUid)return m.refUid===u;return m.by===u;}
-async function permanentDelete(m){if(!canDelete(m)){ui.err='Only the match creator or admin can delete this match.';render();return;}try{await cloud.api.del('matches',m.id);ui.mid=null;go('matches','list');}catch(e){writeErr(e);}}
+async function permanentDelete(m){if(!canDelete(m)){ui.err='Only the match creator or admin can delete this match.';render();return;}try{await cloud.api.del('matches',m.id);S.matches=S.matches.filter(function(x){return x.id!==m.id;});ui.mid=null;go('matches','list');}catch(e){ui.err=(e&&e.code==='permission-denied')?'Firebase refused deletion for this account. Confirm the signed-in email owns the match or is the admin.':'Could not delete the match. Check internet and try again.';render();}}
 function stopMatch(m){if(!canManage(m)&&!canScore(m)){ui.err='Only the creator, assigned referee or admin can stop this match.';render();return;}m.st='stopped';m.stopReason=(prompt('Reason for stopping (optional):')||'').trim();m.stoppedAt=Date.now();touchM(m);render();}
 function selPlayers(v){return '<option value="">Choose…</option>'+players().map(function(p){return '<option value="'+p.id+'"'+(p.id===v?' selected':'')+'>'+esc(p.name)+'</option>';}).join('');}
 function registeredOpts(v){return '<option value="">Creator scores</option>'+players().filter(function(p){return p.uid;}).map(function(p){return '<option value="'+esc(p.uid)+'"'+(p.uid===v?' selected':'')+'>'+esc(p.name)+'</option>';}).join('');}
@@ -690,40 +688,10 @@ function viewSessions(){if(ui.view==='session'&&ui.sid)return viewSession();if(u
 function viewNewSession(){var f=ui.sessionForm||{};return '<div class="row sp"><h2>New session</h2><button class="btn sm" data-act="backsessions">Cancel</button></div><div class="card stack"><div class="field"><label>Session name</label><input id="s-name" value="'+esc(f.name||'')+'"></div><div class="grid2"><div class="field"><label>Date</label><input id="s-date" type="date" value="'+esc(f.date||'')+'"></div><div class="field"><label>Time</label><input id="s-time" type="time" value="'+esc(f.time||'')+'"></div></div><div class="field"><label>Venue</label><input id="s-venue" value="'+esc(f.venue||'')+'"></div><div class="field"><label>Visibility</label><select id="s-vis"><option value="private">Private</option><option value="public">Public</option></select></div><div class="field"><label>Players</label><div>'+players().map(function(p){return '<label class="session-player"><span>'+esc(p.name)+'</span><input type="checkbox" class="s-member" value="'+p.id+'"></label>';}).join('')+'</div></div><div class="field"><label>Additional referee</label><select id="s-ref">'+registeredOpts('')+'</select></div><button class="btn primary block" data-act="createsession">Create session</button></div>';}
 function viewSession(){var x=S.sessions.find(function(z){return z.id===ui.sid;});if(!x)return emptyCard('Session not found','It may have been deleted.','<button class="btn" data-act="backsessions">Back</button>');var four=x.nextFour&&x.nextFour.length?x.nextFour:fairFour(x),teams=x.nextTeams||splitTeams(x,four),can=sessionMine(x);return '<div class="row sp"><div><h2>'+esc(x.name)+'</h2><div class="muted">'+esc(x.date||'')+' · '+esc(x.time||'')+' · '+esc(x.venue||'Venue not set')+'</div>'+(x.visibility==='private'?'<div class="status-pill">Private code: '+esc(x.joinCode||x.id)+'</div>':'<div class="status-pill">Public session · live viewing</div>')+'</div><button class="btn sm" data-act="backsessions">Back</button></div><div class="card"><h3>Suggested next match</h3><div class="grid2"><div><b>Team A</b><p>'+teams[0].map(nameOf).join(' & ')+'</p></div><div><b>Team B</b><p>'+teams[1].map(nameOf).join(' & ')+'</p></div></div><div class="waiting"><span class="status-pill">Waiting: '+(x.members||[]).filter(function(id){return four.indexOf(id)<0;}).map(nameOf).join(', ')+'</span></div>'+(can?'<div class="session-actions row"><button class="btn sm" data-act="randomteams">Randomize</button><button class="btn sm" data-act="editlineup">Change players</button><button class="btn primary sm" data-act="startsessionmatch">Start match</button></div>':'')+'</div>'+((can&&(x.pending||[]).length)?'<div class="card"><h3>Join requests</h3>'+(x.pending||[]).map(function(u){var pp=players().find(function(q){return q.uid===u||q.id===u;});return '<div class="session-player"><b>'+esc(pp?pp.name:u)+'</b><div class="row"><button class="btn sm primary" data-act="approvejoin" data-id="'+u+'">Approve</button><button class="btn sm" data-act="rejectjoin" data-id="'+u+'">Reject</button></div></div>';}).join('')+'</div>':'')+'<div class="card"><h3>Session players</h3>'+(x.members||[]).map(function(id){var z=(x.history||{})[id]||{};return '<div class="session-player"><span>'+esc(nameOf(id))+'</span><span class="mini">Played '+(z.played||0)+' · consecutive '+(z.consec||0)+'</span></div>';}).join('')+'</div>';}
 
-
-/* AUDIT FIXES: authoritative navigation, session matches, scoring lock, break history */
-var actionBusy=false;
-function sessionById(id){return S.sessions.find(function(x){return x.id===id&&!x.del;});}
-function sessionMatches(id){return liveMatches().filter(function(m){return m.sessionId===id;}).sort(function(a,b){return (b.t||0)-(a.t||0);});}
-function sessionCanManage(x){return isAdmin()||x.by===meId()||(x.refUids||[]).indexOf(meId())>=0;}
-function playerIdOf(p){return p.playerId||('SX-'+String(p.id).slice(0,6).toUpperCase());}
-function fmtClock(ms){var n=Math.max(0,Math.round(ms/1000)),m=Math.floor(n/60),q=n%60;return m+'m '+q+'s';}
-function lastPointGap(m){var all=[];(m.g||[]).forEach(function(g){(g.r||[]).forEach(function(raw){var r=parseR(raw);if(r.ts)all.push(r.ts);});});return all.length>1?all[all.length-1]-all[all.length-2]:0;}
-function viewSession(){
-  var x=sessionById(ui.sid);if(!x)return emptyCard('Session not found','The session may have been deleted.','<button class="btn" data-act="backsessions">Back</button>');
-  var need=x.matchType===1?2:4,four=x.nextFour&&x.nextFour.length?x.nextFour:fairFour(x).slice(0,need),teams=x.nextTeams||(x.matchType===1?[[four[0]],[four[1]]]:splitTeams(x,four)),can=sessionCanManage(x),sm=sessionMatches(x.id);
-  var h='<div class="row sp"><div><h2>'+esc(x.name)+'</h2><div class="muted">'+esc(x.date||'')+' · '+esc(x.time||'')+' · '+esc(x.venue||'Venue not set')+'</div><div class="status-pill">'+(x.matchType===1?'Singles':'Doubles')+' · '+(x.visibility==='private'?'Private code: '+esc(x.joinCode||x.id):'Public session')+'</div></div><button class="btn sm" data-act="backsessions">Back</button></div>';
-  h+='<div class="card"><h3>Suggested next match</h3><div class="grid2"><div><b>Team A</b><p>'+((teams[0]||[]).map(nameOf).join(' & ')||'Add players')+'</p></div><div><b>Team B</b><p>'+((teams[1]||[]).map(nameOf).join(' & ')||'Add players')+'</p></div></div>'+(can?'<div class="session-actions row"><button class="btn sm" data-act="randomteams">Randomize</button><button class="btn primary sm" data-act="startsessionmatch"'+(four.length<need?' disabled':'')+'>Start match</button></div>':'')+'</div>';
-  h+='<h3>Session matches</h3>'+(sm.length?'<div class="stack">'+sm.map(function(m){var st=matchState(m);return '<div class="card session-match"><div class="row sp"><div><b>Round '+(m.round||1)+' · '+esc(teamName(m,0))+' vs '+esc(teamName(m,1))+'</b><div class="small muted">'+(st.done?'Finished':m.st==='stopped'?'Stopped':'In progress')+' · '+(scoreLine(st)||'0–0')+'</div></div><button class="btn '+(canScore(m)?'primary ':'')+'sm" data-act="opensessionmatch" data-id="'+m.id+'">'+(canScore(m)&&!st.done?'Resume':'Open')+'</button></div></div>';}).join('')+'</div>':emptyCard('No session matches','Start the first match when the player lineup is ready.',''));
-  if(can)h+='<div class="card stack"><button class="btn sm" data-act="addsessionplayers">Add players manually</button><button class="btn danger sm" data-act="delsession" data-id="'+x.id+'">'+(ui.confirm==='delsession:'+x.id?'Confirm delete session':'Delete session')+'</button></div>';
-  h+='<div class="card"><h3>Session players</h3>'+(x.members||[]).map(function(id){var p=players().find(function(q){return q.id===id;}),z=(x.history||{})[id]||{};return '<div class="session-player"><span>'+esc(nameOf(id))+' <span class="pid">'+esc(p?playerIdOf(p):'')+'</span></span><span class="mini">Played '+(z.played||0)+'</span></div>';}).join('')+'</div>';
-  return h;
-}
-function breakPanel(m){var b=m.breaks||[],active=b.length&&b[b.length-1].end==null?b[b.length-1]:null,h='<div class="breakbox"><div class="row sp"><b>Break tracking</b>'+(canScore(m)?'<button class="btn sm" data-act="'+(active?'endbreak':'startbreak')+'">'+(active?'End break':'Start break')+'</button>':'')+'</div>';
-  if(active)h+='<div class="small muted">Break started '+new Date(active.start).toLocaleTimeString()+'</div>';
-  if(b.some(function(x){return x.end;}))h+='<ul class="log">'+b.filter(function(x){return x.end;}).slice().reverse().map(function(x){return '<li><span class="s">'+fmtClock(x.end-x.start)+'</span><span>'+new Date(x.start).toLocaleTimeString()+' – '+new Date(x.end).toLocaleTimeString()+'</span></li>';}).join('')+'</ul>';
-  return h+'</div>';
-}
-
 document.addEventListener('click',function(e){
   var b=e.target.closest('[data-act]');if(!b||b.disabled)return;
   var a=b.dataset.act,id=b.dataset.id;
   switch(a){
-    case 'opensessionmatch':{var om=S.matches.find(function(x){return x.id===id&&!x.del;});if(!om){ui.err='Match not found.';render();break;}ui.mid=id;ui.tab='matches';ui.view=canScore(om)&&!matchState(om).done?'match':'detail';ui.err='';render();window.scrollTo(0,0);break;}
-    case 'backsession':ui.sid=id;ui.tab='sessions';ui.view='session';render();window.scrollTo(0,0);break;
-    case 'startbreak':{var bm=curMatch();if(bm&&canScore(bm)){bm.breaks=bm.breaks||[];if(!(bm.breaks.length&&bm.breaks[bm.breaks.length-1].end==null)){bm.breaks.push({start:Date.now(),end:null});touchM(bm);}render();}break;}
-    case 'endbreak':{var bm=curMatch(),br=bm&&bm.breaks&&bm.breaks[bm.breaks.length-1];if(bm&&br&&br.end==null&&canScore(bm)){br.end=Date.now();br.duration=br.end-br.start;touchM(bm);render();}break;}
-    case 'startsessionmatch':{if(actionBusy)break;var sx=sessionById(ui.sid);if(!sx||!sessionCanManage(sx))break;var need=sx.matchType===1?2:4,four=sx.nextFour&&sx.nextFour.length?sx.nextFour:fairFour(sx).slice(0,need);if(four.length<need){ui.err='Add at least '+need+' players.';render();break;}actionBusy=true;var tt=sx.matchType===1?[[four[0]],[four[1]]]:(sx.nextTeams||splitTeams(sx,four)),ids=tt[0].concat(tt[1]),mm={id:uid(),by:meId(),createdAt:Date.now(),t:Date.now(),dt:localDT(),vn:sx.venue||'',sz:sx.matchType===1?1:2,tg:21,bo:3,tm:ids,pids:ids.slice(),refUid:(sx.refUids||[])[0]||'',sessionId:sx.id,round:(sx.round||0)+1,st:'inprogress',breaks:[],g:[{f:0,pos:ids.slice(),r:[]}]};cloud.api.set('matches',mm.id,clean(mm)).then(function(){S.matches.push(mm);sx.round=mm.round;sx.lastFour=four.slice();sx.nextFour=[];sx.nextTeams=[];return touchSession(sx);}).then(function(){ui.mid=mm.id;ui.tab='matches';ui.view='match';ui.err='';actionBusy=false;render();}).catch(function(e){actionBusy=false;writeErr(e);});break;}
     case 'newsession':ui.view='newsession';ui.sessionForm={};render();break;
     case 'backsessions':ui.view='sessions';ui.sid=null;render();break;
     case 'opensession':ui.sid=id;ui.view='session';render();break;
@@ -740,9 +708,9 @@ document.addEventListener('click',function(e){
     case 'new':ui.err='';ui.view='new';render();window.scrollTo(0,0);break;
     case 'back':if(ui.tab==='stats')go('stats','stats');else go('matches','list');break;
     case 'start':startMatch();break;
-    case 'open':{var m=S.matches.find(function(x){return x.id===id&&!x.del;});if(!m){ui.err='Match not found or already deleted.';render();break;}ui.mid=id;ui.view=canScore(m)&&!matchState(m).done?'match':'detail';ui.shot='';ui.next=null;render();window.scrollTo(0,0);break;}
+    case 'open':{var m=S.matches.find(function(x){return x.id===id&&!x.del;});if(!m){ui.err='Match not found or already deleted.';render();break;}ui.mid=m.id;ui.view=canScore(m)&&!matchState(m).done?'match':'detail';ui.shot='';ui.next=null;ui.err='';render();window.scrollTo(0,0);break;}
     case 'detail':ui.mid=id;ui.view='detail';render();window.scrollTo(0,0);break;
-    case 'resume':ui.mid=id;ui.view='match';ui.next=null;render();window.scrollTo(0,0);break;
+    case 'resume':{var m=S.matches.find(function(x){return x.id===id&&!x.del;});if(!m){ui.err='Match not found.';render();break;}if(!canScore(m)){ui.err='Only the creator, assigned referee or admin can score.';ui.view='detail';render();break;}ui.mid=id;ui.view='match';ui.next=null;ui.err='';render();window.scrollTo(0,0);break;}
     case 'pt':addRally(b.dataset.p,'w');break;
     case 'er':addRally(b.dataset.p,'e');break;
     case 'shot':ui.shot=ui.shot===b.dataset.s?'':b.dataset.s;render();break;
