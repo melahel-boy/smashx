@@ -65,8 +65,8 @@ select,input[type=text],input[type=date],input[type=time]{width:100%;min-height:
 .mcard .tn{font-weight:600;display:flex;justify-content:space-between;gap:8px;min-width:0}
 .mcard .tn.win{font-weight:800}
 .mcard .sc{font:700 20px/1 var(--display);letter-spacing:.04em}
-.session-item{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line)}
-.session-item:last-child{border-bottom:0}
+.player-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)}
+.player-row:last-child{border-bottom:0}
 .nav{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);z-index:5;padding:6px max(16px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
 .nav div{max-width:560px;margin:0 auto;display:flex;gap:6px}
 .nav button{flex:1;border:0;background:transparent;display:grid;justify-items:center;gap:2px;padding:6px 4px;border-radius:12px;font-size:12px;font-weight:700;color:var(--muted);min-height:52px}
@@ -103,34 +103,76 @@ select,input[type=text],input[type=date],input[type=time]{width:100%;min-height:
 
 var CONFIG={apiKey:"AIzaSyBDvfwzsRpsc4WALuL14i2SiuQMJXEhlDo",authDomain:"smashx-pro2026.firebaseapp.com",projectId:"smashx-pro2026",storageBucket:"",messagingSenderId:"726099778079",appId:""};
 
-var S={players:[],matches:[],sessions:[]};
+var S={players:[{id:'p1',name:'Dani'},{id:'p2',name:'Naveen'},{id:'p3',name:'Nikhil'},{id:'p4',name:'Kiran'}],matches:[],sessions:[]};
 var cloud={api:null,user:null};
 var ui={tab:'matches',view:'list',mid:null,sid:null,err:'',sessionMode:'list',auth:'out'};
 
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 
+function viewPlayers(){
+  var h='<h2>Players Roster</h2><div class="stack">'+
+    '<div class="card row" style="flex-wrap:nowrap">'+
+    '<input type="text" id="new-player-name" placeholder="Add a friend..." maxlength="24">'+
+    '<button class="btn primary sm" data-act="addplayer">Add</button>'+
+    '</div>';
+  
+  if(!S.players.length){
+    h+='<div class="card empty"><b>No players added</b><p class="muted">Add player names above to start setting up games.</p></div>';
+  } else {
+    h+='<div class="card stack">';
+    S.players.forEach(function(p){
+      h+='<div class="player-row"><span><b>'+esc(p.name)+'</b></span><button class="btn sm danger" data-act="delplayer" data-id="'+p.id+'">Remove</button></div>';
+    });
+    h+='</div>';
+  }
+  return h+'</div>';
+}
+
 function viewSessions(){
   if(ui.sessionMode==='create'){
+    var playerBoxes=S.players.map(function(p){
+      return '<label class="row" style="padding:4px 0"><input type="checkbox" class="sess-p" value="'+p.id+'" checked> <span>'+esc(p.name)+'</span></label>';
+    }).join('');
+
     return '<div class="row sp"><h2>New Session</h2><button class="btn sm" data-act="cancelsession">Cancel</button></div>'+
       '<div class="card stack">'+
-      '<div class="field"><label>Session Title</label><input type="text" id="s-title" placeholder="e.g. Evening Games"></div>'+
+      '<div class="field"><label>Session Title</label><input type="text" id="s-title" placeholder="e.g. Wednesday Badminton Club"></div>'+
       '<div class="field"><label>Format</label><select id="s-type"><option value="doubles">Doubles</option><option value="singles">Singles</option></select></div>'+
+      '<div class="field"><label>Select Participating Players</label><div class="card stack" style="max-height:160px;overflow-y:auto;background:var(--surface2)">'+(playerBoxes||'<p class="small muted">No players found. Add players first in the Players tab.</p>')+'</div></div>'+
       '<div class="grid2">'+
       '<div class="field"><label>Date</label><input type="date" id="s-date"></div>'+
       '<div class="field"><label>Time</label><input type="time" id="s-time"></div>'+
       '</div>'+
-      '<button class="btn primary block" data-act="savesession">Save Session</button>'+
+      '<button class="btn primary block" data-act="savesession">Save & Start Matches</button>'+
       (ui.err?'<p class="err-msg">'+esc(ui.err)+'</p>':'')+
       '</div>';
   }
 
   var h='<div class="row sp"><h2>Sessions</h2><button class="btn primary sm" data-act="newsession">Create session</button></div><div class="stack">';
   if(!S.sessions.length){
-    h+='<div class="card empty"><b>No sessions yet</b><p class="muted">Tap Create session to set up your game night.</p></div>';
+    h+='<div class="card empty"><b>No sessions yet</b><p class="muted">Tap Create session to group your matches.</p></div>';
   } else {
     S.sessions.forEach(function(sess){
-      h+='<div class="card session-item"><div><b>'+esc(sess.title)+'</b><div class="small muted">'+esc(sess.type.toUpperCase())+' · '+esc(sess.date||'Today')+'</div></div>'+
-        '<button class="btn sm danger" data-act="delsession" data-id="'+sess.id+'">Delete</button></div>';
+      h+='<div class="card stack"><div><b>'+esc(sess.title)+'</b><div class="small muted">'+esc(sess.type.toUpperCase())+' · '+sess.playerIds.length+' players</div></div>'+
+        '<div class="row"><button class="btn sm primary" data-act="tab" data-v="matches">View Matches</button><button class="btn sm danger" data-act="delsession" data-id="'+sess.id+'">Delete</button></div></div>';
+    });
+  }
+  return h+'</div>';
+}
+
+function viewMatches(){
+  var h='<h2>Active Matches</h2><div class="stack">';
+  if(!S.matches.length){
+    h+='<div class="card empty"><b>No active matches</b><p class="muted">Create a Session to automatically generate matches.</p></div>';
+  } else {
+    S.sessions.forEach(function(sess){
+      var sessMatches=S.matches.filter(function(m){return m.sessId===sess.id;});
+      if(sessMatches.length){
+        h+='<h3>'+esc(sess.title)+'</h3>';
+        sessMatches.forEach(function(m){
+          h+='<div class="card mcard"><div><b>Match #'+m.id+'</b></div><div class="sc">'+m.scoreA+' - '+m.scoreB+'</div></div>';
+        });
+      }
     });
   }
   return h+'</div>';
@@ -156,9 +198,9 @@ function render(){
   nav.hidden=false;
   var h='';
   if(ui.tab==='sessions') h=viewSessions();
-  else if(ui.tab==='matches') h='<h2>Matches</h2><div class="card empty"><b>Active Matches</b><p class="muted">Select or create a session to start scoring.</p></div>';
+  else if(ui.tab==='matches') h=viewMatches();
   else if(ui.tab==='history') h='<h2>History</h2><div class="card empty"><b>Completed Matches</b><p class="muted">Ended matches will move here.</p></div>';
-  else if(ui.tab==='players') h='<h2>Players</h2><div class="card empty"><b>Roster</b><p class="muted">Add players to assign courts.</p></div>';
+  else if(ui.tab==='players') h=viewPlayers();
   else if(ui.tab==='stats') h='<h2>Stats</h2><div class="card empty"><b>Player Statistics</b><p class="muted">Metrics stay permanent even if match logs are deleted.</p></div>';
   else if(ui.tab==='me') h='<h2>My Account</h2><div class="card stack"><p class="small muted">Signed in as <b>'+esc(cloud.user?cloud.user.name:'Player')+'</b></p><button class="btn sm" data-act="signout">Sign out</button></div>';
   
@@ -180,20 +222,39 @@ document.addEventListener('click',function(e){
   var b=e.target.closest('[data-act]');if(!b)return;
   var a=b.dataset.act, id=b.dataset.id;
   if(a==='tab') go(b.dataset.v);
+  else if(a==='addplayer'){
+    var inp=document.getElementById('new-player-name');
+    var val=inp?(inp.value||'').trim():'';
+    if(val){
+      S.players.push({id:'p_'+Date.now(),name:val});
+      render();
+    }
+  }
+  else if(a==='delplayer'){
+    S.players=S.players.filter(function(x){return x.id!==id;});
+    render();
+  }
   else if(a==='newsession'){ ui.sessionMode='create'; ui.err=''; render(); }
   else if(a==='cancelsession'){ ui.sessionMode='list'; ui.err=''; render(); }
   else if(a==='savesession'){
     var title=(document.getElementById('s-title').value||'').trim();
     var type=document.getElementById('s-type').value;
-    var date=document.getElementById('s-date').value;
+    var checked=[].slice.call(document.querySelectorAll('.sess-p:checked')).map(function(c){return c.value;});
     if(!title){ ui.err='Please enter a session title.'; render(); return; }
-    S.sessions.push({id:Date.now().toString(36),title:title,type:type,date:date});
+    if(checked.length<2){ ui.err='Select at least 2 players for a session.'; render(); return; }
+    
+    var sid='sess_'+Date.now();
+    S.sessions.push({id:sid,title:title,type:type,playerIds:checked});
+    S.matches.push({id:'m1',sessId:sid,scoreA:0,scoreB:0,status:'live'});
+    
     ui.sessionMode='list';
+    ui.tab='matches';
     ui.err='';
     render();
   }
   else if(a==='delsession'){
     S.sessions=S.sessions.filter(function(x){return x.id!==id;});
+    S.matches=S.matches.filter(function(m){return m.sessId!==id;});
     render();
   }
   else if(a==='signin' && cloud.api) cloud.api.signIn();
