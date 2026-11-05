@@ -96,13 +96,11 @@ textarea{padding:10px 12px;min-height:90px;font:12px/1.35 ui-monospace,Menlo,Con
 .side .st{min-height:24px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .gline{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:14px;color:var(--muted);margin:10px 2px}
 .team{background:var(--surface);border:1px solid var(--line);border-left:6px solid var(--tc);border-radius:14px;padding:4px 12px}
-.prow{display:grid;gap:8px;padding:8px 0}
-.pbtns{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.prow{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center;padding:8px 0}
 .prow+.prow{border-top:1px solid var(--line)}
 .pname{font-weight:800;font-size:18px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pmeta{font-size:12.5px;color:var(--muted)}
-.pbtn.flt{color:var(--ink);border:2px dashed var(--muted)}
-.pbtn{min-width:0;min-height:54px;border-radius:12px;font-weight:800;font-size:15px;border:2px solid transparent;background:transparent}
+.pbtn{min-width:92px;min-height:58px;border-radius:12px;font-weight:800;font-size:15px;border:2px solid transparent;background:transparent}
 .pbtn.win{background:var(--accent);color:var(--accent-ink)}
 .pbtn.err{color:var(--bad);border-color:var(--bad)}
 .pbtn:active{transform:scale(.96)}
@@ -144,7 +142,7 @@ summary{font-weight:700;cursor:pointer;min-height:28px}
 .nav button svg{width:24px;height:24px}
 .nav button.on{color:var(--accent);background:var(--surface2)}
 @media (prefers-reduced-motion:reduce){.btn:active,.pbtn:active{transform:none}}
-@media (max-width:380px){.num{font-size:80px}}
+@media (max-width:380px){.num{font-size:80px}.pbtn{min-width:80px}}
 </style></head><body>
 <div class="wrap">
   <header class="hd">
@@ -471,13 +469,11 @@ function readForm(){
 function teamCard(m,ms,T,gs,over){
   var g=ms.cur,cls=T===0?'a':'b';
   var rows=teamIds(m,T).map(function(id){
-    var x=gs[id]||{w:0,e:0,f:0},isSrv=!over&&g.srv===T&&g.server===id,nm=esc(nameOf(id));
+    var x=gs[id]||{w:0,e:0},isSrv=!over&&g.srv===T&&g.server===id,nm=esc(nameOf(id));
     return '<div class="prow"><div style="min-width:0"><div class="row" style="gap:6px;flex-wrap:nowrap"><span class="pname">'+nm+'</span>'+(isSrv?'<span class="chip srv">Serving</span>':'')+'</div>'+
-      '<div class="pmeta"><span class="nw">'+courtOf(g,T,id)+'</span> · <span class="nw">'+x.w+' won · '+x.e+' err · '+x.f+' fault</span></div></div>'+
-      '<div class="pbtns">'+
+      '<div class="pmeta"><span class="nw">'+courtOf(g,T,id)+'</span> · <span class="nw">'+x.w+' won · '+x.e+' err</span></div></div>'+
       '<button class="pbtn win" data-act="pt" data-p="'+id+'" aria-label="Point won by '+nm+'"'+(over?' disabled':'')+'>Point</button>'+
-      '<button class="pbtn err" data-act="er" data-p="'+id+'" aria-label="Error by '+nm+' (their mistake)"'+(over?' disabled':'')+'>Error</button>'+
-      '<button class="pbtn flt" data-act="ft" data-p="'+id+'" aria-label="Fault by '+nm+' (rule violation)"'+(over?' disabled':'')+'>Fault</button></div></div>';
+      '<button class="pbtn err" data-act="er" data-p="'+id+'" aria-label="Error by '+nm+'"'+(over?' disabled':'')+'>Error</button></div>';
   }).join('');
   return '<div class="team '+cls+'">'+rows+'</div>';
 }
@@ -551,8 +547,8 @@ function viewDetail(){
       '<p class="small">'+(cx.r?'Reason: '+esc(cx.r):'No reason given.')+'</p>'+
       '<p class="small muted">'+(ms.st==='cancelled'?'Left out of player stats.':'Points scored before ending still count in player stats.')+'</p></div>';
   }
-  h+='<div class="card scroll-x"><table class="tbl"><thead><tr><th>Player</th><th>Winners</th><th>Errors</th><th>Faults</th><th>Net</th><th>Smash</th></tr></thead><tbody>'+
-    m.tm.map(function(id){var p=st[id]||{w:0,e:0,f:0,sw:{}};return '<tr><td>'+esc(nameOf(id))+'</td><td>'+p.w+'</td><td>'+p.e+'</td><td>'+(p.f||0)+'</td><td>'+signed(p.w-p.e)+'</td><td>'+(p.sw.s||0)+'</td></tr>';}).join('')+
+  h+='<div class="card scroll-x"><table class="tbl"><thead><tr><th>Player</th><th>Winners</th><th>Errors</th><th>Net</th><th>Smash</th></tr></thead><tbody>'+
+    m.tm.map(function(id){var p=st[id]||{w:0,e:0,f:0,sw:{}};return '<tr><td>'+esc(nameOf(id))+'</td><td>'+p.w+'</td><td>'+p.e+'</td><td>'+signed(p.w-p.e)+'</td><td>'+(p.sw.s||0)+'</td></tr>';}).join('')+
     '</tbody></table></div>';
   m.g.forEach(function(g,i){
     var gst=ms.games[i];if(!gst.n)return;
@@ -612,7 +608,7 @@ function viewStats(){
   if(pairs.length){
     h+='<h3>Partnerships</h3><div class="card"><ul class="log">'+pairs.map(function(p){return '<li><span class="s">'+p.w+'–'+p.l+'</span><span>'+esc(nameOf(p.ids[0]))+' &amp; '+esc(nameOf(p.ids[1]))+'</span></li>';}).join('')+'</ul></div>';
   }
-  h+='<p class="small muted">Winners are rallies a player finished. Errors are points a player gave away by their own mistake. Faults are rule violations, such as a service fault or touching the net. Net is winners minus errors; faults are counted separately.</p>';
+  h+='<p class="small muted">Winners are rallies a player finished. Errors are points a player gave away. Net is winners minus errors.</p>';
   return h+'</div>';
 }
 function viewPlayer(){return playerPage(computeStats(liveMatches()).P[ui.pid],nameOf(ui.pid),'<div class="row sp"><button class="btn sm" data-act="back">← Stats</button></div>');}
@@ -634,16 +630,35 @@ function viewMe(){
   var top='<div class="stack" style="margin-top:14px"><span class="small muted">Signed in as '+esc(cloud.user.name)+'. Includes every match under your account.</span>'+(me?'<span class="small"><b>Your player ID:</b> '+esc(displayId(me))+'</span>':'')+'</div>';
   return playerPage(mine.length?sumStats(mine):null,'My stats',top);
 }
+function fixBtn(){return '<div style="margin-top:14px"><button class="btn sm" data-act="hardreload">Refresh app</button></div>';}
+function hardReload(){
+  var go=function(){location.reload();};
+  try{
+    var jobs=[];
+    if(navigator.serviceWorker&&navigator.serviceWorker.getRegistrations)jobs.push(navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.map(function(r){return r.unregister();}));}));
+    if(window.caches&&caches.keys)jobs.push(caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}));
+    Promise.all(jobs).then(go,go);
+  }catch(e){go();}
+}
+function showErrBar(msg){
+  try{
+    var d=document.getElementById('errbar');
+    if(!d){d=document.createElement('div');d.id='errbar';d.style.cssText='position:fixed;left:0;right:0;top:0;z-index:20;background:#B8362A;color:#fff;padding:10px 14px;font:600 13px/1.35 system-ui,sans-serif';document.body.appendChild(d);}
+    d.innerHTML='Something went wrong: '+esc(String(msg).slice(0,160))+' <button data-act="hardreload" style="margin-left:8px;border:0;border-radius:8px;padding:6px 10px;font-weight:700">Refresh app</button>';
+  }catch(e){}
+}
+window.addEventListener('error',function(e){showErrBar(e.message||'unknown error');});
+window.addEventListener('unhandledrejection',function(e){showErrBar((e.reason&&e.reason.message)||'unknown error');});
 function viewAuth(){
-  if(ui.auth==='loading')return '<div class="card empty" style="margin-top:20px"><b>Loading</b><p class="muted">Getting things ready.</p></div>';
+  if(ui.auth==='loading')return '<div class="card empty" style="margin-top:20px"><b>Loading</b><p class="muted">'+(ui.slow?'This is taking longer than usual. Check your internet, then tap Refresh app.':'Getting things ready.')+'</p>'+(ui.slow?fixBtn():'')+'</div>';
   if(ui.auth==='setup')return '<div class="card empty" style="margin-top:20px"><b>Almost there</b><p class="muted">This app is not connected to its Google back office yet.</p></div>';
-  return '<div class="card empty" style="margin-top:20px"><img class="hero" src="logo.jpg" alt="SmashX" width="800" height="436"><b>Keep score. Know your game.</b><p class="muted">Sign in with Google. Every match is backed up and your own stats follow you into every game.</p><div style="margin-top:16px;width:100%"><button class="btn primary block" data-act="signin">Sign in with Google</button></div>'+(ui.err?'<p class="err-msg" style="margin-top:12px">'+esc(ui.err)+'</p>':'')+'</div>';
+  return '<div class="card empty" style="margin-top:20px"><img class="hero" src="logo.jpg" alt="SmashX" width="800" height="436"><b>Keep score. Know your game.</b><p class="muted">Sign in with Google. Every match is backed up and your own stats follow you into every game.</p><div style="margin-top:16px;width:100%"><button class="btn primary block" data-act="signin">Sign in with Google</button></div>'+(ui.err?'<p class="err-msg" style="margin-top:12px">'+esc(ui.err)+'</p>':'')+fixBtn()+'</div>';
 }
 function playerPage(p,title,top){
   var h=top+'<h2>'+esc(title)+'</h2>';
   if(!p)return h+'<div class="card"><p class="muted">No matches yet for this player.</p></div>';
   h+='<div class="stack"><div class="card stack"><div class="mg">'+metric(p.mw+'–'+p.ml,'Matches won–lost')+metric(p.gw+'–'+p.gl,'Games won–lost')+metric(pct(p.mw,p.m),'Match win rate')+
-    metric(p.w,'Winners')+metric(p.e,'Errors')+metric(p.f||0,'Faults')+metric(signed(p.w-p.e),'Net')+metric(pct(p.w,p.tp),'Share of team points')+'</div></div>';
+    metric(p.w,'Winners')+metric(p.e,'Errors')+metric(signed(p.w-p.e),'Net')+metric(pct(p.w,p.tp),'Share of team points')+'</div></div>';
   var maxW=Math.max.apply(null,Object.keys(p.sw).map(function(k){return p.sw[k];}).concat([1]));
   var keys=SHOTS.map(function(x){return x[0];}).concat(['-']);
   var hasShots=keys.some(function(k){return p.sw[k];});
@@ -653,10 +668,6 @@ function playerPage(p,title,top){
   var maxE=Math.max.apply(null,Object.keys(p.se).map(function(k){return p.se[k];}).concat([1]));
   if(keys.some(function(k){return p.se[k];})){
     h+='<h3>Errors by shot</h3><div class="card stack">'+keys.filter(function(k){return p.se[k];}).map(function(k){var n=p.se[k];return '<div class="brow"><span>'+(k==='-'?'Untagged':SHOT[k])+'</span><div class="bar"><span style="width:'+Math.round(n*100/maxE)+'%;background:var(--bad)"></span></div><b>'+n+'</b></div>';}).join('')+'</div>';
-  }
-  var sf=p.sf||{},maxF=Math.max.apply(null,Object.keys(sf).map(function(k){return sf[k];}).concat([1]));
-  if(keys.some(function(k){return sf[k];})){
-    h+='<h3>Faults by shot</h3><div class="card stack">'+keys.filter(function(k){return sf[k];}).map(function(k){var n=sf[k];return '<div class="brow"><span>'+(k==='-'?'Untagged':SHOT[k])+'</span><div class="bar"><span style="width:'+Math.round(n*100/maxF)+'%;background:var(--muted)"></span></div><b>'+n+'</b></div>';}).join('')+'</div>';
   }
   var pk=Object.keys(p.partners);
   if(pk.length){
@@ -701,6 +712,55 @@ function undo(){
   if(g.r.length)g.r.pop();
   ui.next=null;touchM(m);render();
 }
+function addPlayer(name){
+  name=(name||'').trim();
+  if(!name){ui.err='Type a name first.';return false;}
+  if(players().some(function(p){return p.name.toLowerCase()===name.toLowerCase();})){ui.err=name+' is already on the list.';return false;}
+  var id,tries=0;
+  do{id=uid();tries++;}while(tries<20&&S.players.some(function(x){return x.id===id||displayId(x)===pidFor(id);}));
+  var p={id:id,pid:pidFor(id),name:name,uid:null,by:meId(),u:Date.now()};S.players.push(p);touchP(p);ui.err='';return true;
+}
+function startMatch(){
+  readForm();
+  var f=ui.form,sg=f.ty==='s',ids=sg?[f.a1,f.b1]:[f.a1,f.a2,f.b1,f.b2];
+  if(ids.some(function(x){return !x;})||new Set(ids).size<ids.length){ui.err=sg?'Pick two different players.':'Pick four different players.';render();return;}
+  var bo;
+  if(String(f.bo)==='custom'){
+    bo=parseInt(f.cb,10);
+    if(!(bo>=1&&bo<=9&&bo%2===1)){ui.err='Enter an odd number of games from 1 to 9.';render();return;}
+  }else bo=+f.bo;
+  var m={id:uid(),t:Date.now(),u:Date.now(),tg:+f.tg,bo:bo,ty:sg?'s':'d',tm:ids,by:meId(),pids:ids.slice(),g:[{f:+f.sv,pos:ids.slice(),r:[]}]};
+  S.matches.push(m);touchM(m);ui.mid=m.id;ui.view='match';ui.err='';ui.shot='';render();window.scrollTo(0,0);
+}
+
+document.addEventListener('click',function(e){
+  var b=e.target.closest('[data-act]');if(!b||b.disabled)return;
+  var a=b.dataset.act,id=b.dataset.id;
+  switch(a){
+    case 'tab':go(b.dataset.v);break;
+    case 'hardreload':hardReload();break;
+    case 'signin':ui.err='';render();cloud.api.signIn().catch(function(e){ui.err=authMsg(e);render();});break;
+    case 'signout':cloud.api.signOut().catch(function(){});break;
+    case 'claim':cloud.api.update('players',id,{uid:meId()}).then(function(){go('me');}).catch(function(e){ui.err='Could not link this name. Someone may have claimed it already.';render();});break;
+    case 'new':ui.err='';ui.view='new';render();window.scrollTo(0,0);break;
+    case 'back':if(ui.tab==='stats')go('stats','stats');else go('matches','list');break;
+    case 'start':startMatch();break;
+    case 'open':{ui.mid=id;var m=curMatch();ui.view=m&&(matchState(m).done||matchState(m).closed||m.by!==meId())?'detail':'match';ui.shot='';ui.next=null;render();window.scrollTo(0,0);break;}
+    case 'detail':ui.mid=id;ui.view='detail';render();window.scrollTo(0,0);break;
+    case 'resume':ui.mid=id;ui.view='match';ui.next=null;render();window.scrollTo(0,0);break;
+    case 'pt':addRally(b.dataset.p,'w');break;
+    case 'er':addRally(b.dataset.p,'e');break;
+    case 'mtype':readForm();ui.form.ty=b.dataset.t;ui.err='';render();break;
+    case 'cxopen':ui.cx={id:id,kind:'ended',reason:''};render();break;
+    case 'cxkind':if(ui.cx){var ri=document.getElementById('cxr');if(ri)ui.cx.reason=ri.value;ui.cx.kind=b.dataset.k;render();}break;
+    case 'cxno':ui.cx=null;render();break;
+    case 'cxgo':{
+      var cm=S.matches.find(function(x){return x.id===id&&!x.del;}),ri2=document.getElementById('cxr');
+      if(cm&&cm.by===meId()&&!cm.st&&ui.cx){cm.st=ui.cx.kind;cm.cx={r:(ri2?ri2.value:'').trim().slice(0,140),at:Date.now(),by:meId()};touchM(cm);}
+      ui.cx=null;ui.mid=id;ui.view='detail';render();window.scrollTo(0,0);break;
+    }
+    case 'shot':ui.shot=ui.shot===b.dataset.s?'':b.dataset.s;render();break;
+    case 'undo':undo();break;
     case 'nserve':if(ui.next){ui.next.f=+b.dataset.t;render();}break;
     case 'nswap':if(ui.next){var T=+b.dataset.t,p=ui.next.pos,t=p[T*2];p[T*2]=p[T*2+1];p[T*2+1]=t;render();}break;
     case 'startnext':{var m2=curMatch();if(m2&&ui.next){m2.g.push({f:ui.next.f,pos:ui.next.pos.slice(),r:[]});ui.next=null;ui.shot='';touchM(m2);render();window.scrollTo(0,0);}break;}
@@ -751,6 +811,7 @@ document.addEventListener('visibilitychange',function(){
 
 render();
 if('serviceWorker' in navigator&&!window.__FAKE_CLOUD__)navigator.serviceWorker.register('sw.js').catch(function(){});
+setTimeout(function(){if(ui.auth==='loading'){ui.slow=true;render();}},8000);
 bootCloud().catch(function(){ui.auth='out';ui.err='Could not reach Google. Check your internet and refresh.';render();});
 })();
 </script>
