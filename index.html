@@ -1,0 +1,969 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>SmashX</title>
+<meta name="theme-color" content="#031021"><link rel="manifest" href="manifest.json"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: one-column phone app. Header, one working view at a time, fixed bottom tabs.
+   Scoreboard in two team colors on a court-green ground; shuttle-yellow marks game point. */
+:root{
+  --bg:#EBF1EE; --surface:#FFFFFF; --surface2:#E1EAE5; --ink:#11231C; --muted:#586C63; --line:#C9D7D0;
+  --accent:#0D7556; --accent-ink:#FFFFFF; --bad:#B8362A; --hi:#F2CF3D; --hi-ink:#2B2400;
+  --ta:#2859D1; --ta-soft:#DDE6FA; --tb:#C9691A; --tb-soft:#F9E5D0;
+  --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --body:"Figtree",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0D1714; --surface:#15231E; --surface2:#1E3029; --ink:#E8F1EC; --muted:#93A9A0; --line:#2A4036;
+    --accent:#35C79A; --accent-ink:#06241B; --bad:#FF8577; --hi:#F2CF3D; --hi-ink:#2B2400;
+    --ta:#8AA7FF; --ta-soft:#1B2A52; --tb:#F2A65E; --tb-soft:#46300F; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0D1714; --surface:#15231E; --surface2:#1E3029; --ink:#E8F1EC; --muted:#93A9A0; --line:#2A4036;
+  --accent:#35C79A; --accent-ink:#06241B; --bad:#FF8577; --hi:#F2CF3D; --hi-ink:#2B2400;
+  --ta:#8AA7FF; --ta-soft:#1B2A52; --tb:#F2A65E; --tb-soft:#46300F; color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{padding-top:env(safe-area-inset-top,0px)}
+html{-webkit-text-size-adjust:100%}
+body{
+  background:var(--bg); color:var(--ink); font:500 16px/1.4 var(--body);
+  padding-block:0 92px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.wrap{max-width:560px;margin:0 auto}
+.hero{width:100%;height:auto;display:block;border-radius:12px;margin:0 0 14px}
+.hd{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-block:14px 4px}
+.brand{display:flex;align-items:center;gap:8px;font:800 26px/1 var(--display);letter-spacing:.03em;text-transform:uppercase;white-space:nowrap;flex:none}
+.brand svg{width:24px;height:24px;color:var(--accent);flex:none}
+.sync{font-size:12px;color:var(--muted);text-align:right;min-width:0}
+h2{font:700 24px/1.1 var(--display);letter-spacing:.03em;text-transform:uppercase;margin:18px 0 10px;text-wrap:balance}
+h3{font:700 14px/1.2 var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:20px 0 8px}
+p{margin:0}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.stack{display:grid;gap:12px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.row.sp{justify-content:space-between}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;min-width:0}
+.btn{appearance:none;border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:10px 16px;min-height:48px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;gap:8px;text-align:center}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.danger{color:var(--bad);border-color:var(--bad)}
+.btn.block{width:100%}
+.btn.sm{min-height:38px;padding:6px 12px;font-size:14px}
+.btn:active{transform:scale(.98)}
+.btn[disabled]{opacity:.45}
+.field label{display:block;font-size:13px;font-weight:700;color:var(--muted);margin-bottom:4px}
+select,input[type=text],input[type=number],input[type=date],input[type=time],textarea{width:100%;min-height:48px;border-radius:12px;border:1px solid var(--line);background:var(--surface);padding:0 12px}
+textarea{padding:10px 12px;min-height:90px;font:12px/1.35 ui-monospace,Menlo,Consolas,monospace}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.chip{display:inline-block;padding:2px 9px;border-radius:99px;background:var(--surface2);font-size:12px;font-weight:700;line-height:1.5;white-space:nowrap}
+.chip.srv{background:var(--accent);color:var(--accent-ink)}
+.chip.hi{background:var(--hi);color:var(--hi-ink)}
+.chip.ex{background:transparent;border:1px dashed var(--muted);color:var(--muted)}
+.chip.bad{background:transparent;border:1px solid var(--bad);color:var(--bad)}
+.chip.W{background:var(--accent);color:var(--accent-ink)}
+.chip.L{background:var(--surface2);color:var(--muted)}
+.err-msg{color:var(--bad);font-weight:600;font-size:14px}
+.empty{text-align:center;padding:26px 16px}
+.empty b{display:block;font:700 22px/1.1 var(--display);letter-spacing:.03em;text-transform:uppercase;margin-bottom:6px}
+
+/* Match list */
+.mcard{display:grid;gap:6px;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.mcard .tn{font-weight:600;display:flex;justify-content:space-between;gap:8px;min-width:0}
+.mcard .tn span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mcard .tn.win{font-weight:800}
+.mcard .sc{font:700 20px/1 var(--display);letter-spacing:.04em;font-variant-numeric:tabular-nums}
+.live{border-color:var(--accent);box-shadow:inset 6px 0 0 var(--accent)}
+
+/* Scoring */
+.board{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.side{background:var(--surface);border:1px solid var(--line);border-top:6px solid var(--tc);border-radius:14px;padding:8px 12px 10px;min-width:0}
+.side.a,.team.a{--tc:var(--ta)}
+.side.b,.team.b{--tc:var(--tb)}
+.side .lbl{font-size:13px;font-weight:700;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.num{font:800 96px/.95 var(--display);color:var(--tc);font-variant-numeric:tabular-nums}
+.side .st{min-height:24px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.gline{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:14px;color:var(--muted);margin:10px 2px}
+.team{background:var(--surface);border:1px solid var(--line);border-left:6px solid var(--tc);border-radius:14px;padding:4px 12px}
+.prow{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center;padding:8px 0}
+.prow+.prow{border-top:1px solid var(--line)}
+.pname{font-weight:800;font-size:18px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pmeta{font-size:12.5px;color:var(--muted)}
+.pbtn{min-width:92px;min-height:58px;border-radius:12px;font-weight:800;font-size:15px;border:2px solid transparent;background:transparent}
+.pbtn.win{background:var(--accent);color:var(--accent-ink)}
+.pbtn.err{color:var(--bad);border-color:var(--bad)}
+.pbtn:active{transform:scale(.96)}
+.shots{display:flex;gap:6px;flex-wrap:wrap}
+.sc-btn{border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:6px 13px;min-height:38px;font-weight:700;font-size:14px}
+.sc-btn.on{background:var(--hi);color:var(--hi-ink);border-color:var(--hi)}
+.log{list-style:none;margin:0;padding:0;display:grid;gap:0}
+.log li{display:flex;gap:10px;padding:7px 0;border-top:1px solid var(--line);font-size:14px}
+.log li:first-child{border-top:0}
+.log .s{font:700 17px/1.2 var(--display);letter-spacing:.04em;min-width:58px;font-variant-numeric:tabular-nums}
+.log .ta{color:var(--ta)} .log .tb{color:var(--tb)}
+
+/* Stats */
+.mg{display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:8px}
+.pcard .mg{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.pcard .mg div{padding:8px}
+.nw{white-space:nowrap}
+.mg div{background:var(--surface2);border-radius:10px;padding:8px 10px;min-width:0}
+.mg b{display:block;font:700 28px/1.05 var(--display);font-variant-numeric:tabular-nums}
+.mg span{font-size:12px;color:var(--muted);font-weight:600}
+.pcard{display:grid;gap:10px;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.pcard .nm{font-weight:800;font-size:18px;display:flex;justify-content:space-between;gap:8px}
+.bar{height:10px;border-radius:99px;background:var(--surface2);overflow:hidden}
+.bar span{display:block;height:100%;background:var(--accent);border-radius:99px}
+.brow{display:grid;grid-template-columns:78px 1fr 34px;gap:10px;align-items:center;font-size:14px;font-variant-numeric:tabular-nums}
+.tbl{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.tbl th,.tbl td{padding:8px 6px;text-align:right;border-top:1px solid var(--line);font-size:14px}
+.tbl th:first-child,.tbl td:first-child{text-align:left;font-weight:700}
+.tbl th{font-size:12px;color:var(--muted);border-top:0}
+.scroll-x{overflow-x:auto}
+details{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 14px}
+summary{font-weight:700;cursor:pointer;min-height:28px}
+
+/* Bottom tabs */
+.nav{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);z-index:5;
+  padding:6px max(16px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.nav div{max-width:560px;margin:0 auto;display:flex;gap:6px}
+.nav button{flex:1;border:0;background:transparent;display:grid;justify-items:center;gap:2px;padding:6px 4px;border-radius:12px;font-size:12px;font-weight:700;color:var(--muted);min-height:52px}
+.nav button svg{width:24px;height:24px}
+.nav button.on{color:var(--accent);background:var(--surface2)}
+@media (prefers-reduced-motion:reduce){.btn:active,.pbtn:active{transform:none}}
+@media (max-width:380px){.num{font-size:80px}.pbtn{min-width:80px}}
+</style></head><body>
+<div class="wrap">
+  <header class="hd">
+    <div class="brand">
+      <img src="logo-mark.png" alt="" width="34" height="34" style="border-radius:8px;flex:none">
+      SmashX
+    </div>
+    <div class="sync" id="sync"></div>
+  </header>
+  <main id="view"></main>
+</div>
+<nav class="nav" aria-label="Main"><div>
+  <button data-act="tab" data-v="matches" id="t-matches"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M12 5v14M3 12h18"/></svg>Sessions</button>
+  <button data-act="tab" data-v="me" id="t-me"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c.6-4 3.6-6.2 7.5-6.2s6.9 2.2 7.5 6.2"/></svg>Me</button>
+  <button data-act="tab" data-v="players" id="t-players"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c0-3.5 2.7-6 6-6s6 2.5 6 6M16 14.5c2.7 0 5 2 5 5.5"/></svg>Players</button>
+  <button data-act="tab" data-v="stats" id="t-stats"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 20V11M12 20V4M19 20V14"/></svg>Stats</button>
+</div></nav>
+
+<script>
+(function(){
+'use strict';
+/*CORE*/
+var SHOTS=[['s','Smash'],['d','Drop'],['n','Net'],['v','Drive'],['l','Lob'],['x','Serve']];
+var SHOT={};SHOTS.forEach(function(x){SHOT[x[0]]=x[1];});
+var CAP={21:30,15:21,11:15};
+function uid(){return Date.now().toString(36).slice(-4)+Math.random().toString(36).slice(2,6);}
+function sessionUid(){try{var a=new Uint8Array(18);crypto.getRandomValues(a);return Array.from(a).map(function(x){return x.toString(16).padStart(2,'0');}).join('');}catch(e){return uid()+uid()+uid()+uid();}}
+function isOver(a,b,tg){var mx=Math.max(a,b);return (mx>=tg&&Math.abs(a-b)>=2)||mx>=(CAP[tg]||tg+9);}
+function parseR(s){var a=String(s).split(':');return{t:+a[0],p:a[1],k:a[2],s:a[3]||''};}
+/* pos = [A right, A left, B right, B left]. Index 0 of a team is the right court. */
+/* Singles games have pos = [A, B]; the server's court follows their own score (even = right). */
+function gameState(g,tg){
+  var sg=g.pos.length===2;
+  var P=sg?[[g.pos[0]],[g.pos[1]]]:[[g.pos[0],g.pos[1]],[g.pos[2],g.pos[3]]];
+  var s=[0,0],srv=g.f,over=false,winner=-1,n=0;
+  for(var i=0;i<g.r.length;i++){
+    if(over)break;
+    var r=parseR(g.r[i]);
+    s[r.t]++;n++;
+    if(r.t===srv){if(!sg)P[r.t]=[P[r.t][1],P[r.t][0]];}else{srv=r.t;}
+    if(isOver(s[0],s[1],tg)){over=true;winner=s[0]>s[1]?0:1;}
+  }
+  var server=sg?P[srv][0]:P[srv][s[srv]%2===0?0:1];
+  return{s:s,srv:srv,server:server,P:P,over:over,winner:winner,n:n,sg:sg};
+}
+/* Players on one side. Old matches have no type and four players, so they stay doubles. */
+function teamIds(m,T){var per=m.tm.length/2;return m.tm.slice(T*per,(T+1)*per);}
+/* Permanent display ID, derived from the player's permanent record id so old players need no migration. */
+function pidFor(id){
+  id=String(id);
+  var h1=2166136261,h2=5381,i,c;
+  for(i=0;i<id.length;i++){c=id.charCodeAt(i);h1^=c;h1=Math.imul(h1,16777619)>>>0;h2=(Math.imul(h2,33)+c)>>>0;}
+  var A='0123456789ABCDEFGHJKMNPQRSTVWXYZ',n=((h1^(h2<<5))>>>0)%1073741824,s='';
+  for(i=0;i<6;i++){s=A.charAt(n%32)+s;n=Math.floor(n/32);}
+  return 'SX-'+s;
+}
+function displayId(p){return p.pid||pidFor(p.id);}
+function matchesQ(p,q){
+  q=String(q||'').trim().toLowerCase();
+  if(!q)return true;
+  return String(p.name||'').toLowerCase().indexOf(q)>=0||displayId(p).toLowerCase().indexOf(q)>=0;
+}
+function wouldWin(st,t,tg){var s=st.s.slice();s[t]++;return isOver(s[0],s[1],tg);}
+function matchState(m){
+  var need=Math.ceil(m.bo/2),w=[0,0],games=[];
+  m.g.forEach(function(g){var st=gameState(g,m.tg);games.push(st);if(st.over)w[st.winner]++;});
+  var winner=w[0]>=need?0:(w[1]>=need?1:-1);
+  var cur=games[games.length-1];
+  return{games:games,w:w,need:need,winner:winner,done:winner>=0,cur:cur,closed:!!m.st,st:m.st||''};
+}
+function inc(o,k){o[k]=(o[k]||0)+1;}
+function computeStats(matches){
+  var P={},pairs={};
+  function get(id){return P[id]||(P[id]={id:id,m:0,mw:0,ml:0,gw:0,gl:0,w:0,e:0,f:0,tp:0,tl:0,sw:{},se:{},sf:{},form:[],partners:{}});}
+  /* Cancelled matches are kept in history but never counted in anyone's stats. */
+  var list=matches.filter(function(m){return !m.del&&m.st!=='cancelled';}).sort(function(a,b){return a.t-b.t;});
+  list.forEach(function(m){
+    var ms=matchState(m),ids=m.tm;
+    ids.forEach(get);
+    function team(id){return ids.indexOf(id)<ids.length/2?0:1;}
+    m.g.forEach(function(g,gi){
+      g.r.forEach(function(raw){
+        var r=parseR(raw);
+        ids.forEach(function(id){if(team(id)===r.t)get(id).tp++;else get(id).tl++;});
+        /* w = winner, e = error (a player's mistake), f = fault (a rule violation) */
+        if(r.k==='w'){get(r.p).w++;inc(get(r.p).sw,r.s||'-');}
+        else if(r.k==='f'){get(r.p).f++;inc(get(r.p).sf,r.s||'-');}
+        else{get(r.p).e++;inc(get(r.p).se,r.s||'-');}
+      });
+      var st=ms.games[gi];
+      if(st.over)ids.forEach(function(id){if(team(id)===st.winner)get(id).gw++;else get(id).gl++;});
+    });
+    if(ms.done){
+      ids.forEach(function(id){
+        var p=get(id),won=team(id)===ms.winner;
+        p.m++;if(won){p.mw++;}else{p.ml++;}
+        p.form.push(won?'W':'L');
+        if(ids.length===4){
+          var T=team(id),partner=ids[T*2]===id?ids[T*2+1]:ids[T*2];
+          var pr=p.partners[partner]||(p.partners[partner]={w:0,l:0});
+          if(won)pr.w++;else pr.l++;
+        }
+      });
+      if(ids.length===4)[0,1].forEach(function(T){
+        var pr=[ids[T*2],ids[T*2+1]].sort(),key=pr.join('+');
+        var o=pairs[key]||(pairs[key]={ids:pr,w:0,l:0});
+        if(ms.winner===T)o.w++;else o.l++;
+      });
+    }
+  });
+  return{P:P,pairs:pairs};
+}
+function okMatch(m){
+  if(!m||!m.id)return false;
+  if(m.del)return true;
+  return Array.isArray(m.tm)&&(m.tm.length===4||m.tm.length===2)&&Array.isArray(m.g)&&m.g.length>0&&typeof m.tg==='number'&&typeof m.bo==='number'&&
+    m.g.every(function(g){return g&&Array.isArray(g.pos)&&g.pos.length===m.tm.length&&Array.isArray(g.r)&&(g.f===0||g.f===1);});
+}
+function clone(x){return JSON.parse(JSON.stringify(x));}
+/* Merge records by id, newest `u` wins. Returns true when anything changed. */
+function mergeInto(S,dirty,rp,rm,markDirty){
+  var ch=false,i;
+  var lp={};S.players.forEach(function(p){lp[p.id]=p;});
+  (rp||[]).forEach(function(r){
+    if(!r||!r.id||typeof r.name!=='string')return;
+    var l=lp[r.id];
+    if(!l){S.players.push(clone(r));ch=true;if(markDirty)dirty.p=true;}
+    else if((r.u||0)>(l.u||0)){Object.assign(l,clone(r));ch=true;if(markDirty)dirty.p=true;}
+  });
+  var lm={};S.matches.forEach(function(m){lm[m.id]=m;});
+  (rm||[]).forEach(function(r){
+    if(!okMatch(r))return;
+    var l=lm[r.id];
+    if(!l){S.matches.push(clone(r));ch=true;if(markDirty)dirty.m.add(r.id);}
+    else if((r.u||0)>(l.u||0)){i=S.matches.indexOf(l);S.matches[i]=clone(r);ch=true;if(markDirty)dirty.m.add(r.id);}
+  });
+  return ch;
+}
+/*ENDCORE*/
+
+/* ---------- state + cloud ---------- */
+/*CONFIG*/var CONFIG={apiKey:"AIzaSyBDvfwzsRpsc4WALuL14i2SiuQMJXEhlDo",authDomain:"smashx-pro2026.firebaseapp.com",projectId:"smashx-pro2026",storageBucket:"smashx-pro2026.firebasestorage.app",messagingSenderId:"726099778079",appId:"1:726099778079:web:f5415dbe24d8514de4132a",measurementId:"G-RFVQMJWT93"};/*ENDCONFIG*/
+var DEFAULT_ADMIN_EMAIL="danijacob20@gmail.com";
+var S={players:[],matches:[],sessions:[]};
+var cloud={api:null,user:null,pending:false,fromCache:true,meTried:false,stops:[]};
+var ui={tab:'matches',view:'list',mid:null,pid:null,sid:null,shot:'',next:null,err:'',edit:null,confirm:null,form:{},auth:'loading',pq:'',cx:null,joinId:'',joinRole:'player',playerSearchId:'',playerSearchResult:null,playerSearchError:'',playerSearchBusy:false};
+function clean(o){return JSON.parse(JSON.stringify(o));}
+function authMsg(e){
+  var c=(e&&e.code)||'';
+  if(c==='auth/popup-closed-by-user'||c==='auth/cancelled-popup-request')return 'Sign-in was cancelled. Tap the button to try again.';
+  if(c==='auth/popup-blocked')return 'Your phone blocked the sign-in window. Allow pop-ups for this page and try again.';
+  if(c==='auth/unauthorized-domain')return 'This web address is not approved yet in Firebase. Add it under Authentication, Settings, Authorized domains.';
+  if(c==='auth/network-request-failed')return 'No internet. Connect and try again.';
+  return 'Sign-in did not work. Check your internet and try again.';
+}
+function syncText(){
+  if(!cloud.user)return '';
+  if(typeof navigator!=='undefined'&&navigator.onLine===false)return 'Offline · will back up later';
+  if(cloud.pending)return 'Backing up…';
+  if(cloud.fromCache)return 'Connecting…';
+  return 'Backed up';
+}
+function updSync(){var el=document.getElementById('sync');if(el)el.textContent=syncText();}
+function writeErr(e){ui.err=(e&&e.code==='permission-denied')?'Permission denied. Check your session role and Firebase Rules.':'Could not save. Check your connection and Firebase Rules.';render();}
+function touchP(p){p.u=Date.now();cloud.api.set('players',p.id,clean(p)).catch(writeErr);render();}
+function touchM(m){m.u=Date.now();m.pids=m.tm.slice();cloud.api.set('matches',m.id,clean(m)).catch(writeErr);}
+function stopWatch(){cloud.stops.forEach(function(f){try{f();}catch(e){}});cloud.stops=[];}
+function mergeDocs(a,b){var map={};(a||[]).concat(b||[]).forEach(function(x){if(x&&x.id)map[x.id]=x;});return Object.keys(map).map(function(k){return map[k];});}
+function startWatch(){
+  stopWatch();var watchedSid={};function watchSessionGames(){S.sessions.forEach(function(ss){if(ss&&ss.id&&!watchedSid[ss.id]&&(ss.visibility==='public'||isMember(ss.id)||ss.adminUid===meId()||isDefaultAdmin())){watchedSid[ss.id]=true;cloud.stops.push(cloud.api.watchQuery('matches','sid','==',ss.id,function(docs,md){S.matches=mergeDocs(S.matches,docs.filter(okMatch));safeRender();updSync();},function(){}));}});}
+  cloud.stops.push(cloud.api.watch('players',function(docs,md){S.players=docs.filter(function(p){return p&&p.id&&typeof p.name==='string';});cloud.pending=md.hasPendingWrites;cloud.fromCache=md.fromCache;ensureMe();safeRender();updSync();},function(){ui.err='Could not load players.';}));
+  function watchMerge(col,field,op,val,kind){cloud.stops.push(cloud.api.watchQuery(col,field,op,val,function(docs,md){S[kind]=mergeDocs(S[kind],docs);if(kind==='sessions')watchSessionGames();cloud.pending=md.hasPendingWrites;cloud.fromCache=md.fromCache;safeRender();updSync();},function(){/* A second query may be empty or denied; the other visibility query remains active. */}));}
+  watchMerge('sessions','visibility','==','public','sessions');
+  watchMerge('sessions','memberUids','array-contains',meId(),'sessions');
+  if(isDefaultAdmin()){cloud.stops.push(cloud.api.watch('sessions',function(docs,md){S.sessions=mergeDocs(S.sessions,docs);watchSessionGames();safeRender();},function(){}));cloud.stops.push(cloud.api.watch('matches',function(docs,md){S.matches=mergeDocs(S.matches,docs.filter(okMatch));safeRender();updSync();},function(){}));}
+  watchSessionGames();
+  watchMerge('matches','visibility','==','public','matches');
+  watchMerge('matches','memberUids','array-contains',meId(),'matches');
+  watchMerge('matches','by','==',meId(),'matches');
+}
+function ensureMe(){
+  var u=cloud.user;if(!u||cloud.meTried||cloud.fromCache)return;
+  if(S.players.some(function(p){return p.id===u.uid;})){cloud.meTried=true;return;}
+  cloud.meTried=true;
+  cloud.api.set('players',u.uid,{id:u.uid,pid:pidFor(u.uid),name:u.name,uid:u.uid,by:u.uid,u:Date.now()}).catch(function(){cloud.meTried=false;});
+}
+function onUser(u){
+  stopWatch();cloud.meTried=false;
+  if(!u){cloud.user=null;S={players:[],matches:[],sessions:[]};ui.auth='out';ui.tab='matches';ui.view='list';render();return;}
+  cloud.user={uid:u.uid,name:u.displayName||'Player',photo:u.photoURL||'',email:u.email||''};
+  ui.auth='in';ui.err='';render();startWatch();
+}
+async function bootCloud(){
+  if(window.__FAKE_CLOUD__){cloud.api=window.__FAKE_CLOUD__;}
+  else{
+    if(!CONFIG.apiKey){ui.auth='setup';render();return;}
+    var B='https://www.gstatic.com/firebasejs/10.14.1/';
+    var mods=await Promise.all([import(B+'firebase-app.js'),import(B+'firebase-auth.js'),import(B+'firebase-firestore.js')]);
+    var A=mods[0],Au=mods[1],F=mods[2];
+    var app=A.initializeApp(CONFIG),auth=Au.getAuth(app),db;
+    try{db=F.initializeFirestore(app,{localCache:F.persistentLocalCache({tabManager:F.persistentMultipleTabManager()})});}
+    catch(e){db=F.getFirestore(app);}
+    cloud.api={
+      onAuth:function(cb){return Au.onAuthStateChanged(auth,cb);},
+      signIn:function(){var p=new Au.GoogleAuthProvider();p.setCustomParameters({prompt:'select_account'});return Au.signInWithPopup(auth,p);},
+      signOut:function(){return Au.signOut(auth);},
+      watch:function(col,next,err){return F.onSnapshot(F.collection(db,col),{includeMetadataChanges:true},function(snap){next(snap.docs.map(function(d){return d.data();}),snap.metadata);},err);},
+      watchQuery:function(col,field,op,value,next,err){var q=F.query(F.collection(db,col),F.where(field,op,value));return F.onSnapshot(q,{includeMetadataChanges:true},function(snap){next(snap.docs.map(function(d){return d.data();}),snap.metadata);},err);},
+      get:function(col,id){return F.getDoc(F.doc(db,col,id)).then(function(d){return d.exists()?d.data():null;});},
+      findPlayerByPid:function(pid){var q=F.query(F.collection(db,'players'),F.where('pid','==',pid));return F.getDocs(q).then(function(snap){if(snap.empty)return null;var d=snap.docs[0].data();return d;});},
+      set:function(col,id,data){return F.setDoc(F.doc(db,col,id),data);},
+      update:function(col,id,data){return F.updateDoc(F.doc(db,col,id),data);}
+    };
+  }
+  cloud.api.onAuth(onUser);
+}
+function withTimeout(p,ms){return Promise.race([p,new Promise(function(_,rej){setTimeout(function(){rej(new Error('timeout'));},ms);})]);}
+function safeRender(){var a=document.activeElement;if(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName))return;render();}
+
+/* ---------- helpers ---------- */
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function players(){return S.players.filter(function(p){return !p.del;});}
+function liveMatches(){return S.matches.filter(function(m){return !m.del;});}
+function nameOf(id){var p=S.players.find(function(x){return x.id===id;});return p?p.name:'Player';}
+function teamName(m,T){return teamIds(m,T).map(nameOf).join(' & ');}
+function typeLabel(m){return m.tm.length===2?'Singles':'Doubles';}
+function curMatch(){return S.matches.find(function(m){return m.id===ui.mid&&!m.del;});}
+function fmtDate(t){try{return new Date(t).toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short'});}catch(e){return '';}}
+function localDateValue(d){d=d||new Date();var z=new Date(d.getTime()-d.getTimezoneOffset()*60000);return z.toISOString().slice(0,10);}
+function localTimeValue(d){d=d||new Date();return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
+function sessionKey(m){return m.sid?'s:'+m.sid:'legacy:'+m.id;}
+function sessionGroups(){
+  var map={},out=[];
+  S.sessions.forEach(function(x){if(!x||!x.id)return;var date=x.sessionDate||localDateValue(new Date(x.sessionAt||x.createdAt||Date.now())),time=x.sessionTime||'';map['s:'+x.id]={key:'s:'+x.id,sid:x.id,venue:x.venue||'Venue not set',date:date,time:time,at:+(x.sessionAt||0)||new Date(date+'T'+(time||'00:00')).getTime(),games:[],created:x.createdAt||0,doc:x};});
+  liveMatches().forEach(function(m){var k=sessionKey(m),g=map[k];if(!g){var date=m.sessionDate||localDateValue(new Date(m.sessionAt||m.t)),time=m.sessionTime||'';g=map[k]={key:k,sid:m.sid||'',venue:m.venue||'Venue not set',date:date,time:time,at:+(m.sessionAt||0)||new Date(date+'T'+(time||'00:00')).getTime(),games:[],created:m.t,doc:null};}g.games.push(m);});
+  Object.keys(map).forEach(function(k){var g=map[k];g.games.sort(function(a,b){return a.t-b.t;});out.push(g);});
+  return out.sort(function(a,b){return b.at-a.at;});
+}
+function isDefaultAdmin(){return !!(cloud.user&&String(cloud.user.email||'').toLowerCase()===DEFAULT_ADMIN_EMAIL);}
+function sessionDoc(sid){return S.sessions.find(function(x){return x.id===sid;})||null;}
+function myRole(sid){var x=sessionDoc(sid);if(!x)return '';if(isDefaultAdmin())return 'admin';if(x.adminUid===meId())return 'admin';return x.members&&x.members[meId()]||'';}
+function isReferee(sid){var x=sessionDoc(sid);return !!(x&&x.refereeUid===meId());}
+function canManageSession(sid){return isDefaultAdmin()||myRole(sid)==='admin'||isReferee(sid);}
+function canScore(m){var sk=m.g&&m.g.length?m.g[m.g.length-1].sk:null;return !!sk&&(isDefaultAdmin()||isReferee(m.sid)||sk===meId());}
+function isMember(sid){var r=myRole(sid);return !!r&&r!=='refereeRequest';}
+function sessionLink(sid){return location.origin+location.pathname+'?join='+encodeURIComponent(sid);}
+function sessionCategory(g,now){
+  var d=new Date(g.at),n=new Date(now);
+  if(g.at>now)return 'upcoming';
+  if(d.getFullYear()===n.getFullYear()&&d.getMonth()===n.getMonth()&&d.getDate()===n.getDate())return 'current';
+  return 'past';
+}
+function sessionDateTime(g){
+  var d=new Date(g.date+'T'+(g.time||'00:00'));
+  if(isNaN(d.getTime()))d=new Date(g.at);
+  return d.toLocaleString(undefined,{weekday:'short',day:'numeric',month:'short',year:'numeric',hour:g.time?'numeric':undefined,minute:g.time?'2-digit':undefined});
+}
+function pct(a,b){return b?Math.round(a*100/b)+'%':'–';}
+function signed(n){return (n>0?'+':'')+n;}
+function scoreLine(ms){return ms.games.filter(function(g){return g.n>0;}).map(function(g){return g.s[0]+'–'+g.s[1];}).join('  ·  ');}
+function courtOf(st,T,id){
+  if(st.sg)return st.s[T]%2===0?'Right court':'Left court';
+  return st.P[T].indexOf(id)===0?'Right court':'Left court';
+}
+function hasExamples(){return false;}
+function meId(){return cloud.user?cloud.user.uid:'';}
+function gameStatsFor(g){var o={};g.r.forEach(function(raw){var r=parseR(raw);var x=o[r.p]||(o[r.p]={w:0,e:0,f:0});if(r.k==='w')x.w++;else if(r.k==='f')x.f++;else x.e++;});return o;}
+function rallyLines(m,g,st){
+  var s=[0,0],out=[];
+  g.r.forEach(function(raw,i){
+    var r=parseR(raw);if(i>=st.n)return;
+    s[r.t]++;
+    var what=(r.k==='w'?'winner':r.k==='f'?'fault':'error')+(r.s?' · '+SHOT[r.s].toLowerCase():'');
+    out.push({sc:s[0]+'–'+s[1],t:r.t,text:nameOf(r.p)+' '+what});
+  });
+  return out;
+}
+function keepAwake(){try{if(!window.__wl&&navigator.wakeLock){navigator.wakeLock.request('screen').then(function(l){window.__wl=l;l.addEventListener('release',function(){window.__wl=null;});}).catch(function(){});}}catch(e){}}
+function buzz(){try{if(navigator.vibrate)navigator.vibrate(12);}catch(e){}}
+
+/* ---------- views ---------- */
+function emptyCard(title,text,btns){return '<div class="card empty"><b>'+title+'</b><p class="muted">'+text+'</p><div class="row" style="justify-content:center;margin-top:14px">'+btns+'</div></div>';}
+
+function matchCard(m){
+  var ms=matchState(m),done=ms.done,closed=ms.closed;
+  var line=ms.games.filter(function(g){return g.n>0;}).map(function(g){return g.s[0]+'–'+g.s[1];}).join(' · ');
+  var chip=closed?'<span class="chip bad">'+(ms.st==='cancelled'?'Cancelled':'Ended')+'</span>':(done?'<span class="chip">Completed</span>':'<span class="chip srv">In progress</span>');
+  return '<button class="mcard'+(done||closed?'':' live')+'" data-act="open" data-id="'+m.id+'">'+
+    '<div class="row sp small muted"><span>'+esc(fmtDate(m.t))+' · '+typeLabel(m)+' · to '+m.tg+' · best of '+m.bo+'</span><span>'+(m.ex?'<span class="chip ex">example</span> ':'')+chip+'</span></div>'+
+    [0,1].map(function(T){return '<div class="tn'+(ms.winner===T?' win':'')+'"><span>'+esc(teamName(m,T))+'</span><span>'+(ms.winner===T?'Won ':'')+ms.w[T]+'</span></div>';}).join('')+
+    '<div class="sc">'+(line||'0–0')+'</div></button>';
+}
+
+function sessionCard(g){
+  var live=g.games.filter(function(m){var s=matchState(m);return !s.done&&!s.closed;}).length;
+  return '<button class="mcard" data-act="opensession" data-id="'+esc(g.sid||g.key)+'">'+
+    '<div class="row sp small muted"><span>'+esc(g.venue)+'</span><span>'+(g.doc&&g.doc.visibility==='private'?'Private':'Public')+' · '+g.games.length+' game'+(g.games.length===1?'':'s')+'</span></div>'+
+    '<div class="tn"><span>'+esc(sessionDateTime(g))+'</span><span>'+(live?'<span class="chip srv">'+live+' live</span>':'<span class="chip">Saved</span>')+'</span></div>'+
+    '<div class="small muted">'+g.games.map(function(m){return esc(teamName(m,0))+' vs '+esc(teamName(m,1));}).join(' · ')+'</div></button>';
+}
+function viewList(){
+  var groups=sessionGroups(),now=Date.now();
+  var cats=[{id:'current',name:'Current Session'},{id:'upcoming',name:'Upcoming Session'},{id:'past',name:'Past / History Session'}];
+  var h='<h2>Sessions</h2><div class="stack">';
+  h+='<button class="btn primary block" data-act="new">＋ Create Session</button>' + '<div class="card stack"><b>Join a Session</b><form data-form="join" class="stack"><div class="field"><label for="joinid">Session ID or private link</label><input id="joinid" type="text" placeholder="Paste Session ID or link" value="'+esc(ui.joinId||'')+'"></div><div class="field"><label for="joinrole">Choose your role</label><select id="joinrole"><option value="player"'+(ui.joinRole==='player'?' selected':'')+'>Player</option><option value="refereeRequest"'+(ui.joinRole==='refereeRequest'?' selected':'')+'>Referee (request approval)</option><option value="spectator"'+(ui.joinRole==='spectator'?' selected':'')+'>Spectator</option></select></div><button class="btn block" type="submit">Join Session</button></form></div>';
+  cats.forEach(function(c){
+    var list=groups.filter(function(g){return sessionCategory(g,now)===c.id;});
+    h+='<details class="card"><summary>'+c.name+' <span class="chip">'+list.length+'</span></summary>'+
+      (list.length?'<div class="stack" style="margin-top:12px">'+list.map(sessionCard).join('')+'</div>':'<p class="small muted" style="margin-top:10px">No sessions in this section.</p>')+'</details>';
+  });
+  if(hasExamples())h+='<button class="btn sm" data-act="rmsample">Remove sample data</button>';
+  return h+'</div>';
+}
+function saveSessionDoc(d){d.u=Date.now();var at=S.sessions.findIndex(function(x){return x.id===d.id;});if(at>=0)S.sessions[at]=d;else S.sessions.push(d);cloud.api.set('sessions',d.id,clean(d)).catch(writeErr);}
+function sessionRoster(d){return Array.isArray(d.roster)?d.roster.slice():[];}
+function roundRobin(d){
+  var ids=sessionRoster(d),mode=d.matchType||'d',rounds=[],n=ids.length;
+  if(n<(mode==='s'?2:4)){ui.err='Add at least '+(mode==='s'?2:4)+' players to the session roster first.';render();return;}
+  var ring=ids.slice();if(n%2)ring.push(null);
+  var count=ring.length-1,half=ring.length/2;
+  for(var r=0;r<count;r++){
+    var slots=[];for(var j=0;j<half;j++){var a=ring[j],b=ring[ring.length-1-j];if(a&&b)slots.push([a,b]);}
+    var fixtures=[];
+    if(mode==='s')slots.forEach(function(pair){fixtures.push({teams:[[pair[0]],[pair[1]]],names:['Team A','Team B']});});
+    else{
+      var pool=slots.reduce(function(z,x){return z.concat(x);},[]);
+      for(var k=0;k+3<pool.length;k+=4){fixtures.push({teams:[[pool[k],pool[k+1]],[pool[k+2],pool[k+3]]],names:['Team A','Team B']});}
+    }
+    var used={};fixtures.forEach(function(fx){fx.teams.forEach(function(team){team.forEach(function(pid){used[pid]=true;});});});
+    var bye=ids.filter(function(pid){return !used[pid];});rounds.push({id:uid(),name:'Round '+(r+1),fixtures:fixtures,bye:bye,createdAt:Date.now()});
+    ring=[ring[0]].concat([ring[ring.length-1]]).concat(ring.slice(1,ring.length-1));
+  }
+  d.rounds=(d.rounds||[]).concat(rounds);saveSessionDoc(d);ui.err='Generated '+rounds.length+' rounds.';render();
+}
+function roundHtml(d){
+  var rounds=d.rounds||[],ids=sessionRoster(d),out='';
+  out+='<div class="card stack"><b>Round-Robin · '+(d.matchType==='s'?'Singles':'Doubles')+'</b>';
+  out+='<div class="field"><label for="rosteradd">Add registered player to session</label><select id="rosteradd"><option value="">Choose player…</option>'+players().filter(function(p){return ids.indexOf(p.id)<0;}).map(function(p){return '<option value="'+esc(p.id)+'">'+esc(p.name)+'</option>';}).join('')+'</select></div>';
+  out+='<button class="btn sm" data-act="rosteradd" data-id="'+esc(d.id)+'">＋ Add player</button><p class="small muted">Roster: '+(ids.length?ids.map(function(id){return esc(nameOf(id));}).join(' · '):'No players added yet')+'</p>';
+  out+='<button class="btn primary block" data-act="generaterounds" data-id="'+esc(d.id)+'">Generate rounds</button></div>';
+  rounds.forEach(function(r,i){out+='<div class="card stack"><div class="row sp"><b>'+esc(r.name||('Round '+(i+1)))+'</b><div class="row"><button class="btn sm" data-act="shuffleround" data-id="'+esc(d.id)+'" data-rid="'+esc(r.id)+'" title="Shuffle">⇄</button><button class="btn sm" data-act="editround" data-id="'+esc(d.id)+'" data-rid="'+esc(r.id)+'">Edit</button><button class="btn sm danger" data-act="deleteround" data-id="'+esc(d.id)+'" data-rid="'+esc(r.id)+'" aria-label="Delete round">♻</button></div></div>';
+    if(r.bye&&(Array.isArray(r.bye)?r.bye.length:true))out+='<p class="small muted">Bye / Rest: '+esc((Array.isArray(r.bye)?r.bye:[r.bye]).map(nameOf).join(', '))+'</p>';
+    (r.fixtures||[]).forEach(function(f,j){out+='<div class="small">'+esc((f.names&&f.names[0])||'Team A')+': '+esc((f.teams[0]||[]).map(nameOf).join(' & '))+' <b>vs</b> '+esc((f.names&&f.names[1])||'Team B')+': '+esc((f.teams[1]||[]).map(nameOf).join(' & '))+'</div>';});
+    out+='</div>';});
+  out+='<button class="btn block" data-act="addrround" data-id="'+esc(d.id)+'">＋ Add round</button>';return out;
+}
+function viewSession(){
+  var g=sessionGroups().find(function(x){return x.sid===ui.sid||x.key===ui.sid;});
+  if(!g){ui.view='list';ui.sid=null;return viewList();}
+  var d=g.doc||{},role=myRole(g.sid),h='<div class="row sp"><button class="btn sm" data-act="back">← Sessions</button></div>'+
+    '<h2>'+esc(g.venue)+'</h2><p class="small muted" style="margin:-4px 0 12px">'+esc(sessionDateTime(g))+' · '+(d.visibility==='private'?'Private':'Public')+' · '+g.games.length+' games</p>';
+  h+='<div class="card stack"><b>'+(d.visibility==='private'?'Private Session ID':'Session invite link')+'</b><code>'+esc(g.sid)+'</code><button class="btn block" data-act="copylink" data-id="'+esc(g.sid)+'">Copy invite link</button></div>';
+  if(!isMember(g.sid))h+='<div class="card stack"><p class="small">Choose your role to join this session.</p><form data-form="join" class="stack"><input type="text" id="joinid" value="'+esc(g.sid)+'" hidden><select id="joinrole"><option value="player">Player</option><option value="refereeRequest">Referee (request approval)</option><option value="spectator">Spectator</option></select><button class="btn primary block" type="submit">Join this session</button></form></div>';
+  else h+='<div class="card stack"><div class="row sp"><b>Your role</b><span class="chip">'+esc(role==='admin'?'Session Admin':(d.roleRequests&&d.roleRequests[meId()])?'Referee request pending':role==='spectator'?'Spectator':role==='referee'?'Referee':'Player')+'</span></div>'+
+    (canManageSession(g.sid)?'<div class="field"><label for="refereeuid">Appoint / change Referee</label><select id="refereeuid"><option value="">No Referee</option>'+Object.keys(d.members||{}).filter(function(uid){return uid!==d.adminUid&&d.members[uid]!=='refereeRequest';}).map(function(uid){var p=S.players.find(function(x){return x.uid===uid;});return '<option value="'+esc(uid)+'"'+(d.refereeUid===uid?' selected':'')+'>'+(p?esc(p.name):'Member')+'</option>';}).join('')+'</select></div><button class="btn block" data-act="setref" data-id="'+esc(g.sid)+'">Save Referee</button>' : '')+
+    (d.roleRequests&&Object.keys(d.roleRequests).length&&canManageSession(g.sid)?'<p class="small muted">Referee requests: '+Object.keys(d.roleRequests).length+'</p>'+Object.keys(d.roleRequests).map(function(uid){var p=S.players.find(function(x){return x.uid===uid;});return '<button class="btn sm" data-act="approveref" data-id="'+esc(g.sid)+'" data-uid="'+esc(uid)+'">Approve '+(p?esc(p.name):'member')+' as Referee</button>';}).join(''):'')+'</div>';
+  if(d&&canManageSession(g.sid))h+=roundHtml(d);
+  h+='<div class="stack">'+(g.sid&&canManageSession(g.sid)?'<button class="btn primary block" data-act="addgame" data-id="'+esc(g.sid)+'">＋ Add game to this session</button>':'')+g.games.map(matchCard).join('')+'</div>';
+  return h;
+}
+
+function selOpts(sel){
+  var q=ui.form.q||'';
+  return '<option value="">Choose…</option>'+players().filter(function(p){return p.id===sel||matchesQ(p,q);}).map(function(p){return '<option value="'+p.id+'"'+(p.id===sel?' selected':'')+'>'+esc(p.name)+'</option>'; }).join('');
+}
+function viewNew(){
+  var pl=players(),f=ui.form;
+  var h='<div class="row sp"><button class="btn sm" data-act="back">← Sessions</button></div><h2>'+(ui.sid?'Add game to session':'Create Session')+'</h2>';
+  if(!ui.sid){
+    if(!f.sessionDate)f.sessionDate=localDateValue();
+    if(!f.sessionTime)f.sessionTime=localTimeValue();
+    h+='<div class="card stack"><div class="field"><label for="f-venue">Venue</label><input type="text" id="f-venue" maxlength="80" placeholder="Enter venue" value="'+esc(f.venue||'')+'"></div>'+
+      '<div class="grid2"><div class="field"><label for="f-sessionDate">Date</label><input type="date" id="f-sessionDate" value="'+esc(f.sessionDate)+'"></div>'+
+      '<div class="field"><label for="f-sessionTime">Time</label><input type="time" id="f-sessionTime" value="'+esc(f.sessionTime)+'"></div></div>'+
+      '<div class="field"><label for="f-visibility">Session access</label><select id="f-visibility"><option value="public"'+((f.visibility||'public')==='public'?' selected':'')+'>Public</option><option value="private"'+(f.visibility==='private'?' selected':'')+'>Private</option></select></div><div class="field"><label for="f-sessiontype">Round-Robin match type</label><select id="f-sessiontype"><option value="d"'+((f.sessionType||'d')==='d'?' selected':'')+'>Doubles</option><option value="s"'+(f.sessionType==='s'?' selected':'')+'>Singles</option></select></div></div>'; 
+  }else{
+    h+='<p class="small muted">'+esc(f.venue||'')+' · '+esc(f.sessionDate||'')+' '+esc(f.sessionTime||'')+'</p>';
+  }
+  if(!f.tg){f.tg='21';f.bo='3';f.sv='0';}
+  if(!f.ty)f.ty=f.sessionType||'d';
+  var sg=f.ty==='s',need=sg?2:4;
+  h+='<div class="stack">';
+  h+='<div class="card stack"><div class="field"><label>Match type</label><div class="grid2">'+
+     '<button class="btn'+(sg?'':' primary')+'" data-act="mtype" data-t="d">Doubles</button>'+
+     '<button class="btn'+(sg?' primary':'')+'" data-act="mtype" data-t="s">Singles</button></div></div></div>';
+  if(pl.length<need){
+    h+='<div class="card"><p>You need '+need+' players for '+(sg?'singles':'doubles')+'. You have '+pl.length+'.</p><form data-form="addp" class="row" style="margin-top:10px;flex-wrap:nowrap"><input type="text" id="np" placeholder="Player name" maxlength="24" autocomplete="off"><button class="btn primary" type="submit">Add</button></form></div>';
+  }
+  h+='<div class="card"><div class="field"><label for="mq">Find a player by name</label><input type="text" id="mq" placeholder="Type a player name" autocomplete="off" value="'+esc(f.q||'')+'"></div></div>';
+  function pick(T,key){
+    var a=T===0?'a':'b',col=T===0?'ta':'tb';
+    var one='<div class="field"><label for="f-'+a+'1">'+(sg?'Player':'Player 1')+'</label><select id="f-'+a+'1">'+selOpts(f[a+'1'])+'</select></div>';
+    var two=sg?'':'<div class="field"><label for="f-'+a+'2">Player 2</label><select id="f-'+a+'2">'+selOpts(f[a+'2'])+'</select></div>';
+    return '<div class="card stack"><div class="row sp"><b style="color:var(--'+col+')">Team '+(T===0?'A':'B')+'</b>'+(sg?'':'<span class="small muted">Player 1 starts in the right court</span>')+'</div>'+
+      '<div class="'+(sg?'':'grid2')+'">'+one+two+'</div></div>';
+  }
+  h+=pick(0)+pick(1);
+  function opt(v,l,cur){return '<option value="'+v+'"'+(String(cur)===String(v)?' selected':'')+'>'+l+'</option>';}
+  var cust=String(f.bo)==='custom';
+  h+='<div class="card stack"><div class="grid2">'+
+     '<div class="field"><label for="f-tg">Game to</label><select id="f-tg">'+opt(21,'21 points',f.tg)+opt(15,'15 points',f.tg)+opt(11,'11 points',f.tg)+'</select></div>'+
+     '<div class="field"><label for="f-bo">Match</label><select id="f-bo">'+opt(1,'1 game',f.bo)+opt(3,'Best of 3',f.bo)+opt(5,'Best of 5',f.bo)+opt('custom','Custom',f.bo)+'</select></div></div>'+
+     (cust?'<div class="field"><label for="f-cb">Number of games (odd, 1 to 9)</label><input type="number" id="f-cb" inputmode="numeric" min="1" max="9" step="2" placeholder="e.g. 7" value="'+esc(f.cb||'')+'"></div>':'')+
+     '<div class="field"><label for="f-sv">Serves first</label><select id="f-sv">'+opt(0,'Team A',f.sv)+opt(1,'Team B',f.sv)+'</select></div>'+
+     '<p class="small muted">Win by 2 points. At '+(CAP[+f.tg]||30)+' the next point wins.</p></div>';
+  if(ui.err)h+='<p class="err-msg">'+esc(ui.err)+'</p>';
+  var selectedIds=(sg?[f.a1,f.b1]:[f.a1,f.a2,f.b1,f.b2]).filter(Boolean);
+  h+='<button class="btn primary block" data-act="'+(ui.sid?'start':'createsessiononly')+'">'+(ui.sid?'Start game':(selectedIds.length?'Create Session':'Create Session Without Players'))+'</button></div>';
+  return h;
+}
+function readForm(){
+  var f=ui.form;
+  [['a1','f-a1'],['a2','f-a2'],['b1','f-b1'],['b2','f-b2'],['tg','f-tg'],['bo','f-bo'],['cb','f-cb'],['sv','f-sv'],['venue','f-venue'],['sessionDate','f-sessionDate'],['sessionTime','f-sessionTime'],['visibility','f-visibility'],['sessionType','f-sessiontype']].forEach(function(x){var el=document.getElementById(x[1]);if(el)f[x[0]]=el.value;});
+}
+
+function teamCard(m,ms,T,gs,over){
+  var g=ms.cur,cls=T===0?'a':'b';
+  var rows=teamIds(m,T).map(function(id){
+    var x=gs[id]||{w:0,e:0},isSrv=!over&&g.srv===T&&g.server===id,nm=esc(nameOf(id));
+    return '<div class="prow"><div style="min-width:0"><div class="row" style="gap:6px;flex-wrap:nowrap"><span class="pname">'+nm+'</span>'+(isSrv?'<span class="chip srv">Serving</span>':'')+'</div>'+
+      '<div class="pmeta"><span class="nw">'+courtOf(g,T,id)+'</span> · <span class="nw">'+x.w+' won · '+x.e+' err</span></div></div>'+
+      '<button class="pbtn win" data-act="pt" data-p="'+id+'" aria-label="Point won by '+nm+'"'+(over||!canScore(m)?' disabled':'')+'>Point</button>'+
+      '<button class="pbtn err" data-act="er" data-p="'+id+'" aria-label="Error by '+nm+'"'+(over||!canScore(m)?' disabled':'')+'>Error</button></div>';
+  }).join('');
+  return '<div class="team '+cls+'">'+rows+'</div>';
+}
+function cxCard(m){
+  if(!canManageSession(m.sid))return '';
+  var c=ui.cx;
+  if(!c||c.id!==m.id)return '<div class="row" style="margin:12px 0"><button class="btn danger" data-act="cxopen" data-id="'+m.id+'">End or cancel match</button></div>';
+  return '<div class="card stack" style="margin:12px 0;border-color:var(--bad)"><b>End or cancel this match</b>'+
+    '<div class="grid2"><button class="btn'+(c.kind==='ended'?' primary':'')+'" data-act="cxkind" data-k="ended">End match</button><button class="btn'+(c.kind==='cancelled'?' primary':'')+'" data-act="cxkind" data-k="cancelled">Cancel match</button></div>'+
+    '<p class="small muted">'+(c.kind==='ended'?'Ending stops scoring. Points already scored still count in player stats.':'Cancelling stops scoring and leaves this match out of all player stats.')+' The record stays in your history.</p>'+
+    '<div class="field"><label for="cxr">Reason (optional)</label><input type="text" id="cxr" maxlength="140" autocomplete="off" value="'+esc(c.reason||'')+'"></div>'+
+    '<div class="grid2"><button class="btn danger" data-act="cxgo" data-id="'+m.id+'">Confirm</button><button class="btn" data-act="cxno">Never mind</button></div></div>';
+}
+
+function viewScore(){
+  var m=curMatch();
+  if(!m){ui.view='list';return viewList();}
+  if((!canScore(m)&&!canManageSession(m.sid))||matchState(m).closed){ui.view='detail';return viewDetail();}
+  keepAwake();
+  var ms=matchState(m),g=ms.cur,tg=m.tg,gi=m.g.length,over=g.over;
+  var gs=gameStatsFor(m.g[gi-1]);
+  var gp=[0,1].map(function(T){return !over&&wouldWin(g,T,tg);});
+  var h='<div class="row sp"><button class="btn sm" data-act="back">← '+(ui.sid?'Session':'Matches')+'</button><span class="small muted">'+(ms.done?'Match complete':'Game '+gi+' of '+m.bo)+'</span></div>';
+  h+='<div class="board" style="margin-top:12px">'+[0,1].map(function(T){
+    var chips='';
+    if(!over&&g.srv===T)chips+='<span class="chip srv">Serving</span>';
+    if(gp[T])chips+='<span class="chip hi">'+(ms.w[T]+1>=ms.need?'Match point':'Game point')+'</span>';
+    return '<div class="side '+(T===0?'a':'b')+'"><div class="lbl">'+(T===0?'A':'B')+' · '+esc(teamName(m,T))+'</div><div class="num" aria-label="Score">'+g.s[T]+'</div><div class="st">'+chips+'</div></div>';
+  }).join('')+'</div>';
+  h+='<div class="gline"><span>First to '+tg+', win by 2 (cap '+(CAP[tg]||tg+9)+')</span><span>Games '+ms.w[0]+'–'+ms.w[1]+'</span></div>';
+  if(!over){
+    h+='<div class="card" style="margin-bottom:12px"><div class="small muted" style="margin-bottom:6px">Shot (optional, applies to the next tap)</div><div class="shots">'+
+      SHOTS.map(function(x){return '<button class="sc-btn'+(ui.shot===x[0]?' on':'')+'" data-act="shot" data-s="'+x[0]+'">'+x[1]+'</button>';}).join('')+'</div></div>';
+  }
+  h+='<div class="stack">'+teamCard(m,ms,0,gs,over)+teamCard(m,ms,1,gs,over)+'</div>';
+  if(g.r.length===0&&canManageSession(m.sid)){var opts='<option value="">Choose Scorekeeper</option>';m.tm.forEach(function(pid){var pp=S.players.find(function(x){return x.id===pid;});if(pp&&pp.uid&&sessionDoc(m.sid)&&sessionDoc(m.sid).members&&sessionDoc(m.sid).members[pp.uid]==='player')opts+='<option value="'+esc(pp.uid)+'">'+esc(pp.name)+'</option>';});var sd=sessionDoc(m.sid);if(sd&&sd.refereeUid)opts+='<option value="'+esc(sd.refereeUid)+'">Referee</option>';h+='<div class="card stack"><b>Appoint Scorekeeper for Game '+gi+'</b><select id="scorekeeperuid">'+opts+'</select><button class="btn primary block" data-act="setsk" data-id="'+m.id+'">Confirm Scorekeeper</button><p class="small muted">Only the appointed Scorekeeper or Referee can change this game’s score.</p></div>'; }else if(g.sk){h+='<p class="small muted">Scorekeeper: '+esc((S.players.find(function(x){return x.uid===g.sk;})||{}).name|| (sessionDoc(m.sid)&&sessionDoc(m.sid).refereeUid===g.sk?'Referee':'Appointed member'))+'</p>'; }
+
+  if(over&&!ms.done){
+    var nx=ui.next;
+    if(!nx||nx.mid!==m.id||nx.n!==gi){var lg=m.g[gi-1];nx=ui.next={mid:m.id,n:gi,f:g.winner,pos:lg.pos.slice()};}
+    h+='<div class="card stack" style="margin-top:12px;border-color:var(--accent)"><div><b>Game '+gi+' to '+esc(teamName(m,g.winner))+'</b> <span class="muted">'+g.s[0]+'–'+g.s[1]+'</span></div>'+
+      '<div class="field"><label>Serves first in game '+(gi+1)+'</label><div class="grid2"><button class="btn'+(nx.f===0?' primary':'')+'" data-act="nserve" data-t="0">Team A</button><button class="btn'+(nx.f===1?' primary':'')+'" data-act="nserve" data-t="1">Team B</button></div></div>'+
+      (g.sg?'':'<div class="field"><label>Starting courts (right · left)</label><div class="grid2">'+
+      [0,1].map(function(T){return '<button class="btn" data-act="nswap" data-t="'+T+'">'+esc(nameOf(nx.pos[T*2]))+' · '+esc(nameOf(nx.pos[T*2+1]))+' ⇄</button>';}).join('')+'</div></div>')+
+      '<button class="btn primary block" data-act="startnext">Start game '+(gi+1)+'</button></div>';
+  }
+  if(ms.done){
+    h+='<div class="card stack" style="margin-top:12px;border-color:var(--accent)"><div><b>'+esc(teamName(m,ms.winner))+' won the match</b> <span class="muted">'+ms.w[0]+'–'+ms.w[1]+'</span></div><button class="btn primary block" data-act="detail" data-id="'+m.id+'">See player stats</button></div>';
+  }
+  var canUndo=m.g[m.g.length-1].r.length>0;
+  h+='<div class="row" style="margin:12px 0"><button class="btn" data-act="undo"'+(canUndo&&canScore(m)?'':' disabled')+'>↶ Undo last point</button></div>';
+  if(!ms.done)h+=cxCard(m);
+  var lines=rallyLines(m,m.g[gi-1],g).slice(-6).reverse();
+  if(lines.length){
+    h+='<h3>Last points</h3><div class="card"><ul class="log">'+lines.map(function(l){return '<li><span class="s '+(l.t===0?'ta':'tb')+'">'+l.sc+'</span><span>'+esc(l.text)+'</span></li>';}).join('')+'</ul></div>';
+  }
+  return h;
+}
+
+function viewDetail(){
+  var m=curMatch();
+  if(!m){ui.view='list';return viewList();}
+  var ms=matchState(m),st=computeStats([m]).P;
+  var h='<div class="row sp"><button class="btn sm" data-act="back">← '+(ui.sid?'Session':'Matches')+'</button><span class="small muted">'+esc(fmtDate(m.t))+(m.ex?' · example':'')+'</span></div>';
+  h+='<h2>'+(ms.closed?(ms.st==='cancelled'?'Cancelled':'Ended'):ms.done?esc(teamName(m,ms.winner))+' won':'In progress')+'</h2>';
+  h+='<p class="small muted" style="margin:-4px 0 10px">'+typeLabel(m)+' · to '+m.tg+' · best of '+m.bo+'</p>';
+  h+='<div class="stack"><div class="card stack">'+[0,1].map(function(T){return '<div class="row sp"><b style="color:var(--'+(T?'tb':'ta')+')">'+esc(teamName(m,T))+'</b><span style="font:800 26px/1 var(--display)">'+ms.w[T]+'</span></div>';}).join('')+
+    '<div class="small muted">'+(scoreLine(ms)||'No points yet')+'</div></div>';
+  if(ms.closed){
+    var cx=m.cx||{};
+    h+='<div class="card stack" style="border-color:var(--bad)"><div><span class="chip bad">'+(ms.st==='cancelled'?'Cancelled':'Ended')+'</span> <span class="small muted">'+(cx.at?esc(new Date(cx.at).toLocaleString()):'')+'</span></div>'+
+      '<p class="small">'+(cx.r?'Reason: '+esc(cx.r):'No reason given.')+'</p>'+
+      '<p class="small muted">'+(ms.st==='cancelled'?'Left out of player stats.':'Points scored before ending still count in player stats.')+'</p></div>';
+  }
+  h+='<div class="card scroll-x"><table class="tbl"><thead><tr><th>Player</th><th>Winners</th><th>Errors</th><th>Net</th><th>Smash</th></tr></thead><tbody>'+
+    m.tm.map(function(id){var p=st[id]||{w:0,e:0,f:0,sw:{}};return '<tr><td>'+esc(nameOf(id))+'</td><td>'+p.w+'</td><td>'+p.e+'</td><td>'+signed(p.w-p.e)+'</td><td>'+(p.sw.s||0)+'</td></tr>';}).join('')+
+    '</tbody></table></div>';
+  m.g.forEach(function(g,i){
+    var gst=ms.games[i];if(!gst.n)return;
+    var lines=rallyLines(m,g,gst);
+    h+='<details><summary>Game '+(i+1)+' · '+gst.s[0]+'–'+gst.s[1]+'</summary><ul class="log" style="margin-top:8px">'+
+      lines.map(function(l){return '<li><span class="s '+(l.t===0?'ta':'tb')+'">'+l.sc+'</span><span>'+esc(l.text)+'</span></li>';}).join('')+'</ul></details>';
+  });
+  if(!canManageSession(m.sid)){
+    h+=canScore(m)?'<div class="row"><button class="btn primary" data-act="resume" data-id="'+m.id+'">'+(ms.done?'Edit scoring':'Resume scoring')+'</button></div></div>':'<p class="small muted">View-only access. Only the appointed Scorekeeper or Referee can change scores.</p></div>';
+  }else{
+    h+='<div class="row">'+(ms.closed?'':'<button class="btn primary" data-act="resume" data-id="'+m.id+'">'+(ms.done?'Edit scoring':'Resume scoring')+'</button>')+
+      (ui.confirm==='del:'+m.id?'<button class="btn danger" data-act="delmatch" data-id="'+m.id+'">Tap again to delete</button>':'<button class="btn danger" data-act="delmatch" data-id="'+m.id+'">Delete match</button>')+'</div>'+(ms.closed||ms.done?'':cxCard(m))+'</div>';
+  }
+  return h;
+}
+
+function playerListHtml(){
+  var pl=players().filter(function(p){return matchesQ(p,ui.pq);}),st=computeStats(liveMatches()).P,h='';
+  if(!players().length)return emptyCard('No players yet','Type a name above. You need four for a doubles match, two for singles.','');
+  if(!pl.length)return '<div class="card empty"><p class="muted">No player matches that name or ID.</p></div>';
+  pl.forEach(function(p){
+    var s=st[p.id]||{m:0,mw:0};
+    if(ui.edit===p.id){
+      h+='<form data-form="ren" data-id="'+p.id+'" class="card row" style="flex-wrap:nowrap"><input type="text" id="rn" value="'+esc(p.name)+'" maxlength="24" aria-label="New name"><button class="btn primary sm" type="submit">Save</button><button class="btn sm" type="button" data-act="cancel-edit">Cancel</button></form>';
+    }else{
+      var mine=p.by===meId(),isMe=p.uid===meId();
+      var tag=p.uid?(isMe?'<span class="chip srv">You</span>':'<span class="chip">Has account</span>'):'<span class="chip ex">Guest</span>';
+      var acts=(!p.uid?'<button class="btn sm primary" data-act="claim" data-id="'+p.id+'">This is me</button>':'')+
+        (mine?'<button class="btn sm" data-act="ren" data-id="'+p.id+'">Rename</button>':'')+
+        (mine&&p.id!==meId()?(ui.confirm==='rm:'+p.id?'<button class="btn sm danger" data-act="rmp" data-id="'+p.id+'">Confirm</button>':'<button class="btn sm danger" data-act="rmp" data-id="'+p.id+'">Remove</button>'):'');
+      h+='<div class="card stack"><div class="row sp"><div style="min-width:0"><b>'+esc(p.name)+'</b> '+tag+'<div class="small muted">'+s.m+' match'+(s.m===1?'':'es')+' · '+pct(s.mw,s.m)+' won</div></div></div>'+(acts?'<div class="row">'+acts+'</div>':'')+'</div>';
+    }
+  });
+  return h;
+}
+function viewPlayers(){
+  var h='<h2>Players</h2><div class="stack">';
+  h+='<form data-form="addp" class="card row" style="flex-wrap:nowrap"><input type="text" id="np" placeholder="Add a player" maxlength="24" autocomplete="off" aria-label="Player name"><button class="btn primary" type="submit">Add</button></form>';
+  if(ui.err)h+='<p class="err-msg">'+esc(ui.err)+'</p>';
+  h+='<div class="card stack"><div class="field"><label for="ps">Search players by name</label><input type="text" id="ps" placeholder="Player name" autocomplete="off" value="'+esc(ui.pq)+'"></div><form data-form="findplayer" class="field"><label for="playeridsearch">Add player using their Unique ID</label><div class="row" style="flex-wrap:nowrap"><input type="text" id="playeridsearch" placeholder="Paste SX- ID" autocomplete="off" value="'+esc(ui.playerSearchId||'')+'"><button class="btn primary" type="submit"'+(ui.playerSearchBusy?' disabled':'')+'>Search</button></div></form>'+(ui.playerSearchError?'<p class="err-msg">'+esc(ui.playerSearchError)+'</p>':'')+(ui.playerSearchResult?'<div class="row sp"><b>'+esc(ui.playerSearchResult.name)+'</b><button class="btn sm primary" type="button" data-act="addfoundplayer">Add</button></div>':'')+'</div>';
+  h+='<div class="stack" id="plist">'+playerListHtml()+'</div>';
+  if(hasExamples())h+='<button class="btn sm" data-act="rmsample">Remove sample data</button>';
+  h+='<h3>Account</h3><div class="card stack"><p class="small muted">Signed in as <b>'+esc(cloud.user?cloud.user.name:'')+'</b>. Everything is backed up to your account and shared with the group.</p><div class="row"><button class="btn sm" data-act="signout">Sign out</button></div></div>';
+  h+='<p class="small muted">Tip: add a friend who has not signed up as a Guest. When they sign in, they tap "This is me" on their name and all their past stats join their account.</p>';
+  return h+'</div>';
+}
+
+function metric(v,l){return '<div><b>'+v+'</b><span>'+l+'</span></div>';}
+function viewStats(){
+  var res=computeStats(liveMatches()),P=res.P;
+  var pl=players().map(function(p){return Object.assign({name:p.name},P[p.id]||{id:p.id,m:0,mw:0,ml:0,gw:0,gl:0,w:0,e:0,f:0,tp:0,tl:0,sw:{},se:{},sf:{},form:[],partners:{}});});
+  var any=pl.some(function(p){return p.w+p.e+(p.f||0)>0;});
+  pl.sort(function(a,b){var ra=a.m?a.mw/a.m:-1,rb=b.m?b.mw/b.m:-1;return rb-ra||b.mw-a.mw||(b.w-b.e)-(a.w-a.e);});
+  var h='<h2>Player stats</h2><div class="stack">';
+  if(!any){h+=emptyCard('No points yet','Score a match and every winner and error is tallied per player.','<button class="btn primary" data-act="tab" data-v="matches">Go to matches</button>');return h+'</div>';}
+  pl.forEach(function(p){
+    h+='<button class="pcard" data-act="player" data-id="'+p.id+'"><div class="nm"><span>'+esc(p.name)+'</span><span class="muted small" style="font-weight:600">'+p.m+' match'+(p.m===1?'':'es')+'</span></div>'+
+      '<div class="mg">'+metric(p.mw+'–'+p.ml,'Won–lost')+metric(p.w,'Winners')+metric(p.e,'Errors')+metric(signed(p.w-p.e),'Net')+'</div></button>';
+  });
+  var pairs=Object.keys(res.pairs).map(function(k){return res.pairs[k];}).sort(function(a,b){return (b.w-b.l)-(a.w-a.l)||b.w-a.w;});
+  if(pairs.length){
+    h+='<h3>Partnerships</h3><div class="card"><ul class="log">'+pairs.map(function(p){return '<li><span class="s">'+p.w+'–'+p.l+'</span><span>'+esc(nameOf(p.ids[0]))+' &amp; '+esc(nameOf(p.ids[1]))+'</span></li>';}).join('')+'</ul></div>';
+  }
+  h+='<p class="small muted">Winners are rallies a player finished. Errors are points a player gave away. Net is winners minus errors.</p>';
+  return h+'</div>';
+}
+function viewPlayer(){var pp=S.players.find(function(x){return x.id===ui.pid;});var top='<div class="row sp"><button class="btn sm" data-act="back">← Stats</button></div>'+(pp?'<div class="card row sp"><div><span class="small muted">Player Unique ID</span><div><b>'+esc(displayId(pp))+'</b></div></div><button class="btn sm" data-act="copyplayerid" data-id="'+esc(displayId(pp))+'">Share / Copy</button></div>':'');return playerPage(computeStats(liveMatches()).P[ui.pid],nameOf(ui.pid),top);}
+function myPids(){var me=meId();return players().filter(function(p){return p.uid===me;}).map(function(p){return p.id;});}
+function sumStats(list){
+  var o={m:0,mw:0,ml:0,gw:0,gl:0,w:0,e:0,f:0,tp:0,tl:0,sw:{},se:{},sf:{},form:[],partners:{}};
+  list.forEach(function(p){
+    ['m','mw','ml','gw','gl','w','e','f','tp','tl'].forEach(function(k){o[k]+=(p[k]||0);});
+    ['sw','se','sf'].forEach(function(k){Object.keys(p[k]||{}).forEach(function(x){o[k][x]=(o[k][x]||0)+p[k][x];});});
+    Object.keys(p.partners).forEach(function(id){var q=o.partners[id]||(o.partners[id]={w:0,l:0});q.w+=p.partners[id].w;q.l+=p.partners[id].l;});
+    o.form=o.form.concat(p.form);
+  });
+  return o;
+}
+function viewMe(){
+  var P=computeStats(liveMatches()).P;
+  var mine=myPids().map(function(id){return P[id];}).filter(Boolean);
+  var me=S.players.find(function(x){return x.id===meId();});
+  var top='<div class="stack" style="margin-top:14px"><span class="small muted">Signed in as '+esc(cloud.user.name)+'. Includes every match under your account.</span>'+(me?'<div class="card row sp"><div><span class="small muted">Your Player Unique ID</span><div><b>'+esc(displayId(me))+'</b></div></div><button class="btn sm" data-act="copyplayerid" data-id="'+esc(displayId(me))+'">Share / Copy</button></div>':'')+'</div>';
+  return playerPage(mine.length?sumStats(mine):null,'My stats',top);
+}
+function fixBtn(){return '<div style="margin-top:14px"><button class="btn sm" data-act="hardreload">Refresh app</button></div>';}
+function hardReload(){
+  var go=function(){location.reload();};
+  try{
+    var jobs=[];
+    if(navigator.serviceWorker&&navigator.serviceWorker.getRegistrations)jobs.push(navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.map(function(r){return r.unregister();}));}));
+    if(window.caches&&caches.keys)jobs.push(caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}));
+    Promise.all(jobs).then(go,go);
+  }catch(e){go();}
+}
+function showErrBar(msg){
+  try{
+    var d=document.getElementById('errbar');
+    if(!d){d=document.createElement('div');d.id='errbar';d.style.cssText='position:fixed;left:0;right:0;top:0;z-index:20;background:#B8362A;color:#fff;padding:10px 14px;font:600 13px/1.35 system-ui,sans-serif';document.body.appendChild(d);}
+    d.innerHTML='Something went wrong: '+esc(String(msg).slice(0,160))+' <button data-act="hardreload" style="margin-left:8px;border:0;border-radius:8px;padding:6px 10px;font-weight:700">Refresh app</button>';
+  }catch(e){}
+}
+window.addEventListener('error',function(e){showErrBar(e.message||'unknown error');});
+window.addEventListener('unhandledrejection',function(e){showErrBar((e.reason&&e.reason.message)||'unknown error');});
+function viewAuth(){
+  if(ui.auth==='loading')return '<div class="card empty" style="margin-top:20px"><b>Loading</b><p class="muted">'+(ui.slow?'This is taking longer than usual. Check your internet, then tap Refresh app.':'Getting things ready.')+'</p>'+(ui.slow?fixBtn():'')+'</div>';
+  if(ui.auth==='setup')return '<div class="card empty" style="margin-top:20px"><b>Almost there</b><p class="muted">This app is not connected to its Google back office yet.</p></div>';
+  return '<div class="card empty" style="margin-top:20px"><img class="hero" src="logo.jpg" alt="SmashX" width="800" height="436"><b>Keep score. Know your game.</b><p class="muted">Sign in with Google. Every match is backed up and your own stats follow you into every game.</p><div style="margin-top:16px;width:100%"><button class="btn primary block" data-act="signin">Sign in with Google</button></div>'+(ui.err?'<p class="err-msg" style="margin-top:12px">'+esc(ui.err)+'</p>':'')+fixBtn()+'</div>';
+}
+function playerPage(p,title,top){
+  var h=top+'<h2>'+esc(title)+'</h2>';
+  if(!p)return h+'<div class="card"><p class="muted">No matches yet for this player.</p></div>';
+  h+='<div class="stack"><div class="card stack"><div class="mg">'+metric(p.mw+'–'+p.ml,'Matches won–lost')+metric(p.gw+'–'+p.gl,'Games won–lost')+metric(pct(p.mw,p.m),'Match win rate')+
+    metric(p.w,'Winners')+metric(p.e,'Errors')+metric(signed(p.w-p.e),'Net')+metric(pct(p.w,p.tp),'Share of team points')+'</div></div>';
+  var maxW=Math.max.apply(null,Object.keys(p.sw).map(function(k){return p.sw[k];}).concat([1]));
+  var keys=SHOTS.map(function(x){return x[0];}).concat(['-']);
+  var hasShots=keys.some(function(k){return p.sw[k];});
+  if(hasShots){
+    h+='<h3>Winners by shot</h3><div class="card stack">'+keys.filter(function(k){return p.sw[k];}).map(function(k){var n=p.sw[k];return '<div class="brow"><span>'+(k==='-'?'Untagged':SHOT[k])+'</span><div class="bar"><span style="width:'+Math.round(n*100/maxW)+'%"></span></div><b>'+n+'</b></div>';}).join('')+'</div>';
+  }
+  var maxE=Math.max.apply(null,Object.keys(p.se).map(function(k){return p.se[k];}).concat([1]));
+  if(keys.some(function(k){return p.se[k];})){
+    h+='<h3>Errors by shot</h3><div class="card stack">'+keys.filter(function(k){return p.se[k];}).map(function(k){var n=p.se[k];return '<div class="brow"><span>'+(k==='-'?'Untagged':SHOT[k])+'</span><div class="bar"><span style="width:'+Math.round(n*100/maxE)+'%;background:var(--bad)"></span></div><b>'+n+'</b></div>';}).join('')+'</div>';
+  }
+  var pk=Object.keys(p.partners);
+  if(pk.length){
+    h+='<h3>With partners</h3><div class="card"><ul class="log">'+pk.map(function(id){var x=p.partners[id];return '<li><span class="s">'+x.w+'–'+x.l+'</span><span>with '+esc(nameOf(id))+'</span></li>';}).join('')+'</ul></div>';
+  }
+  if(p.form.length){
+    h+='<h3>Recent matches</h3><div class="row">'+p.form.slice(-10).reverse().map(function(f){return '<span class="chip '+f+'">'+f+'</span>';}).join('')+'</div>';
+  }
+  return h+'</div>';
+}
+
+function render(){
+  var v=document.getElementById('view');if(!v)return;
+  var nav=document.querySelector('.nav');
+  if(ui.auth!=='in'){nav.hidden=true;v.innerHTML=viewAuth();updSync();return;}
+  nav.hidden=false;
+  var activeSid=ui.sid,activeRole=activeSid?myRole(activeSid):'';['me','players','stats'].forEach(function(t){var nb=document.getElementById('t-'+t);if(nb)nb.hidden=activeRole==='spectator';});
+  var h;
+  if(ui.tab==='matches'){
+    h=ui.view==='new'?viewNew():ui.view==='match'?viewScore():ui.view==='detail'?viewDetail():ui.view==='session'?viewSession():viewList();
+  }else if(ui.tab==='me'){h=viewMe();}else if(ui.tab==='players'){h=viewPlayers();}
+  else{h=ui.view==='player'?viewPlayer():viewStats();}
+  v.innerHTML=h;
+  ['matches','me','players','stats'].forEach(function(t){var b=document.getElementById('t-'+t);if(b){b.classList.toggle('on',ui.tab===t);b.setAttribute('aria-current',ui.tab===t?'page':'false');}});
+  updSync();
+}
+function go(tab,view){ui.tab=tab;ui.view=view||(tab==='matches'?'list':tab==='stats'?'stats':'');if(tab==='matches'&&ui.view==='list'){ui.sid=null;ui.mid=null;}ui.err='';ui.confirm=null;ui.edit=null;ui.cx=null;render();window.scrollTo(0,0);}
+
+/* ---------- actions ---------- */
+function addRally(pid,kind){
+  var m=curMatch();if(!m)return;
+  var ms=matchState(m);if(ms.cur.over||ms.closed||ms.done)return;
+  if(!canScore(m)||m.tm.indexOf(pid)<0)return;
+  var T=m.tm.indexOf(pid)<m.tm.length/2?0:1;
+  var scoring=kind==='w'?T:1-T;
+  m.g[m.g.length-1].r.push(scoring+':'+pid+':'+kind+':'+(ui.shot||''));
+  ui.shot='';buzz();touchM(m);render();
+}
+function undo(){
+  var m=curMatch();if(!m||m.st||!canScore(m))return;
+  var g=m.g[m.g.length-1];
+  if(g.r.length)g.r.pop();else return;
+  ui.next=null;touchM(m);render();
+}
+function addPlayer(name){
+  name=(name||'').trim();
+  if(!name){ui.err='Type a name first.';return false;}
+  if(players().some(function(p){return p.name.toLowerCase()===name.toLowerCase();})){ui.err=name+' is already on the list.';return false;}
+  var id,tries=0;
+  do{id=uid();tries++;}while(tries<20&&S.players.some(function(x){return x.id===id||displayId(x)===pidFor(id);}));
+  var p={id:id,pid:pidFor(id),name:name,uid:null,by:meId(),u:Date.now()};S.players.push(p);touchP(p);ui.err='';return true;
+}
+async function startMatch(){
+  readForm();
+  if(ui.sid&&!canManageSession(ui.sid)){ui.err='Only the Session Admin or Referee can add games.';render();return;}
+  var f=ui.form,sg=f.ty==='s',ids=sg?[f.a1,f.b1]:[f.a1,f.a2,f.b1,f.b2];
+  if(!ui.sid){
+    if(!(f.venue||'').trim()){ui.err='Enter the session venue.';render();return;}
+    if(!f.sessionDate){ui.err='Choose the session date.';render();return;}
+    if(!f.sessionTime){ui.err='Choose the session time.';render();return;}
+  }
+  if(ids.some(function(x){return !x;})||new Set(ids).size<ids.length){ui.err=sg?'Pick two different players.':'Pick four different players.';render();return;}
+  var bo;
+  if(String(f.bo)==='custom'){
+    bo=parseInt(f.cb,10);
+    if(!(bo>=1&&bo<=9&&bo%2===1)){ui.err='Enter an odd number of games from 1 to 9.';render();return;}
+  }else bo=+f.bo;
+  var now=Date.now(),sid=ui.sid||sessionUid(),venue=String(f.venue||'').trim(),sessionDate=f.sessionDate||'',sessionTime=f.sessionTime||'';
+  if(ui.sid){
+    var parent=sessionGroups().find(function(x){return x.sid===ui.sid;});
+    if(parent){venue=parent.venue;sessionDate=parent.date;sessionTime=parent.time;}
+  }
+  var sessionAt=new Date(sessionDate+'T'+sessionTime).getTime();
+  var parent=sessionDoc(sid),visibility=parent?parent.visibility:(f.visibility||'public');
+  var memberUids=parent?(parent.memberUids||[]):[meId()];
+  var m={id:uid(),t:now,u:now,tg:+f.tg,bo:bo,ty:sg?'s':'d',tm:ids,by:meId(),pids:ids.slice(),sid:sid,venue:venue,sessionDate:sessionDate,sessionTime:sessionTime,sessionAt:sessionAt,visibility:visibility,memberUids:memberUids,playerUids:ids.map(function(pid){var pp=S.players.find(function(x){return x.id===pid;});return pp&&pp.uid?pp.uid:null;}).filter(Boolean),g:[{f:+f.sv,pos:ids.slice(),r:[],sk:null}]};
+  if(!parent){var sd={id:sid,venue:venue,sessionDate:sessionDate,sessionTime:sessionTime,sessionAt:sessionAt,visibility:visibility,adminUid:meId(),refereeUid:null,memberUids:[meId()],members:{},roleRequests:{},createdAt:now,u:now};S.sessions.push(sd);try{await cloud.api.set('sessions',sid,sd);}catch(se){S.sessions=S.sessions.filter(function(x){return x.id!==sid;});ui.err='Could not create the session in Firebase. Check Firestore Rules and try again.';render();return;}}
+  S.matches.push(m);touchM(m);ui.mid=m.id;ui.sid=sid;ui.view='match';ui.err='';ui.shot='';render();window.scrollTo(0,0);
+}
+
+async function createSessionOnly(){
+  readForm();var f=ui.form;if(!(f.venue||'').trim()||!f.sessionDate||!f.sessionTime){ui.err='Enter venue, date and time.';render();return;}
+  var sg=(f.ty||f.sessionType||'d')==='s',selected=(sg?[f.a1,f.b1]:[f.a1,f.a2,f.b1,f.b2]).filter(Boolean),unique=Array.from(new Set(selected));
+  var now=Date.now(),sid=sessionUid(),members={},memberUids=[meId()];
+  unique.forEach(function(pid){var pp=S.players.find(function(x){return x.id===pid;});if(pp&&pp.uid){members[pp.uid]='player';if(memberUids.indexOf(pp.uid)<0)memberUids.push(pp.uid);}});
+  var d={id:sid,venue:String(f.venue).trim(),sessionDate:f.sessionDate,sessionTime:f.sessionTime,sessionAt:new Date(f.sessionDate+'T'+f.sessionTime).getTime(),visibility:f.visibility||'public',matchType:sg?'s':'d',adminUid:meId(),refereeUid:null,memberUids:memberUids,members:members,roleRequests:{},roster:unique,rounds:[],createdAt:now,u:now};
+  try{await cloud.api.set('sessions',sid,d);S.sessions.push(d);ui.sid=sid;ui.view='session';ui.err=unique.length?'Session created with selected players.':'Session created. Share the link so players can join later.';render();window.scrollTo(0,0);}catch(e){ui.err='Could not create session. Check Firebase Rules and internet.';render();}
+}
+async function findPlayerByUniqueId(raw){
+  var pid=String(raw||'').trim().toUpperCase();ui.playerSearchId=pid;ui.playerSearchResult=null;ui.playerSearchError='';
+  if(!/^SX-[0-9A-HJKMNP-TV-Z]{6}$/.test(pid)){ui.playerSearchError='Enter a valid player ID (SX-XXXXXX).';render();return;}
+  ui.playerSearchBusy=true;render();
+  try{var found=S.players.find(function(p){return displayId(p).toUpperCase()===pid;})||null;
+    if(!found&&cloud.api.findPlayerByPid)found=await cloud.api.findPlayerByPid(pid);
+    if(found){ui.playerSearchResult=found;ui.playerSearchError='';}else ui.playerSearchError='No player found with this ID.';
+  }catch(e){ui.playerSearchError='Could not search this player. Check connection and Firebase Rules.';}
+  ui.playerSearchBusy=false;render();
+}
+function GenCopy(v){if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(v).then(function(){ui.err='Invite link copied.';render();}).catch(function(){ui.err='Copy failed. Long-press the link to copy: '+v;render();});else{ui.err='Copy this invite link: '+v;render();}}
+async function joinSession(raw,role){try{var sid=String(raw||'').trim();var mt=sid.match(/[?&]join=([^&]+)/);if(mt)sid=decodeURIComponent(mt[1]);sid=sid.replace(/^.*\//,'');if(!sid){ui.err='Enter a Session ID or invite link.';render();return;}var d=await cloud.api.get('sessions',sid);if(!d){ui.err='Session not found. Check the ID or link.';render();return;}var members=d.members||{};var requests=d.roleRequests||{};var chosen=role||'player';var ids=d.memberUids||[];if(ids.indexOf(meId())>=0){var already=sessionDoc(sid);if(already)Object.assign(already,d);else S.sessions.push(d);ui.sid=sid;ui.view='session';ui.joinId='';ui.err='';startWatch();render();return;}if(chosen==='refereeRequest'){requests[meId()]='referee';members[meId()]='player';}else members[meId()]=chosen;if(ids.indexOf(meId())<0)ids.push(meId());d.memberUids=ids;d.members=members;d.roleRequests=requests;var myPlayer=S.players.find(function(p){return p.uid===meId();});d.roster=sessionRoster(d);if(chosen==='player'&&myPlayer&&d.roster.indexOf(myPlayer.id)<0)d.roster.push(myPlayer.id);d.u=Date.now();await cloud.api.set('sessions',sid,d);var local=sessionDoc(sid);if(local)Object.assign(local,d);else S.sessions.push(d);ui.sid=sid;ui.view='session';ui.joinId='';startWatch();ui.err=chosen==='refereeRequest'?'Referee request sent. Session Admin or current Referee must approve it.':'';render();}catch(e){ui.err='Could not join. Check the Session ID and Firebase Rules.';render();}}
+document.addEventListener('click',function(e){
+  var b=e.target.closest('[data-act]');if(!b||b.disabled)return;
+  var a=b.dataset.act,id=b.dataset.id;
+  switch(a){
+    case 'tab':go(b.dataset.v);break;
+    case 'hardreload':hardReload();break;
+    case 'signin':ui.err='';render();cloud.api.signIn().catch(function(e){ui.err=authMsg(e);render();});break;
+    case 'signout':cloud.api.signOut().catch(function(){});break;
+    case 'claim':cloud.api.update('players',id,{uid:meId()}).then(function(){go('me');}).catch(function(e){ui.err='Could not link this name. Someone may have claimed it already.';render();});break;
+    case 'new':ui.err='';ui.sid=null;ui.form={};ui.view='new';render();window.scrollTo(0,0);break;
+    case 'back':if(ui.tab==='stats')go('stats','stats');else if(ui.view==='match'||ui.view==='detail'){if(ui.sid){ui.view='session';ui.mid=null;render();window.scrollTo(0,0);}else go('matches','list');}else if(ui.view==='new'&&ui.sid){ui.view='session';render();window.scrollTo(0,0);}else go('matches','list');break;
+    case 'start':startMatch();break;
+    case 'createsessiononly':createSessionOnly();break;
+    case 'copyplayerid':{var cv=b.dataset.id||'';if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(cv).then(function(){ui.err='Player ID copied. Share it with others.';render();}).catch(function(){ui.err='Player ID: '+cv;render();});else{ui.err='Player ID: '+cv;render();}break;}
+    case 'addfoundplayer':{var fp=ui.playerSearchResult;if(fp&&fp.id){if(!S.players.some(function(x){return x.id===fp.id;}))S.players.push(fp);ui.playerSearchResult=null;ui.playerSearchError='Player added. You can now select '+fp.name+' when creating a session.';ui.pq=fp.name;render();}break;}
+    case 'rosteradd':{var rd=sessionDoc(id),rs=document.getElementById('rosteradd');if(rd&&canManageSession(id)&&rs&&rs.value){rd.roster=sessionRoster(rd);if(rd.roster.indexOf(rs.value)<0)rd.roster.push(rs.value);saveSessionDoc(rd);render();}break;}
+    case 'generaterounds':{var gd=sessionDoc(id);if(gd&&canManageSession(id))roundRobin(gd);break;}
+    case 'addrround':{var ad=sessionDoc(id);if(ad&&canManageSession(id)){ad.rounds=ad.rounds||[];ad.rounds.push({id:uid(),name:'Round '+(ad.rounds.length+1),fixtures:[],bye:[]});saveSessionDoc(ad);render();}break;}
+    case 'deleteround':{var dd=sessionDoc(id),dr=b.dataset.rid;if(dd&&canManageSession(id)){dd.rounds=(dd.rounds||[]).filter(function(x){return x.id!==dr;});saveSessionDoc(dd);render();}break;}
+    case 'shuffleround':{var sd=sessionDoc(id),sr=(sd&&sd.rounds||[]).find(function(x){return x.id===b.dataset.rid;});if(sr&&canManageSession(id)){(sr.fixtures||[]).forEach(function(f){var all=(f.teams[0]||[]).concat(f.teams[1]||[]);for(var q=all.length-1;q>0;q--){var z=Math.floor(Math.random()*(q+1)),tmp=all[q];all[q]=all[z];all[z]=tmp;}var half=all.length/2;f.teams=[all.slice(0,half),all.slice(half)];});saveSessionDoc(sd);render();}break;}
+    case 'editround':{var ed=sessionDoc(id),er=(ed&&ed.rounds||[]).find(function(x){return x.id===b.dataset.rid;});if(er&&canManageSession(id)){var nn=window.prompt('Round name',er.name||'');if(nn===null)break;er.name=nn.trim()||er.name;(er.fixtures||[]).forEach(function(fx,ix){var an=window.prompt('Match '+(ix+1)+' Team A name',fx.names&&fx.names[0]||'Team A');if(an===null)return;var bn=window.prompt('Match '+(ix+1)+' Team B name',fx.names&&fx.names[1]||'Team B');if(bn===null)return;fx.names=[an.trim()||'Team A',bn.trim()||'Team B'];var av=window.prompt('Team A players (enter registered player names separated by commas)',(fx.teams[0]||[]).map(nameOf).join(', '));if(av!==null){var aa=av.split(',').map(function(x){return x.trim().toLowerCase();}).filter(Boolean).map(function(x){var pp=players().find(function(q){return q.name.toLowerCase()===x;});return pp&&pp.id;}).filter(Boolean);if(aa.length)fx.teams[0]=aa;}var bv=window.prompt('Team B players (enter registered player names separated by commas)',(fx.teams[1]||[]).map(nameOf).join(', '));if(bv!==null){var bb=bv.split(',').map(function(x){return x.trim().toLowerCase();}).filter(Boolean).map(function(x){var pp=players().find(function(q){return q.name.toLowerCase()===x;});return pp&&pp.id;}).filter(Boolean);if(bb.length)fx.teams[1]=bb;}});saveSessionDoc(ed);render();}break;}
+    case 'opensession':ui.sid=id;ui.view='session';render();window.scrollTo(0,0);break;
+    case 'copylink':GenCopy(sessionLink(id));break;
+    case 'joinpublic':joinSession(id,'player');break;
+    case 'setref':{var sd2=sessionDoc(id),sel=document.getElementById('refereeuid');if(sd2&&canManageSession(id)){var target=sel?sel.value:'';sd2.refereeUid=target||null;if(target)sd2.members[target]='referee';Object.keys(sd2.members||{}).forEach(function(k){if(k!==target&&sd2.members[k]==='referee')sd2.members[k]='player';});sd2.u=Date.now();cloud.api.set('sessions',id,sd2).catch(writeErr);render();}break;}
+    case 'approveref':{var sd3=sessionDoc(id),who=b.dataset.uid;if(sd3&&canManageSession(id)&&sd3.roleRequests&&sd3.roleRequests[who]){Object.keys(sd3.members||{}).forEach(function(k){if(sd3.members[k]==='referee')sd3.members[k]='player';});sd3.refereeUid=who;sd3.members[who]='referee';delete sd3.roleRequests[who];sd3.u=Date.now();cloud.api.set('sessions',id,sd3).catch(writeErr);render();}break;}
+    case 'setsk':{var sm=S.matches.find(function(x){return x.id===id;}),sk=document.getElementById('scorekeeperuid');if(sm&&canManageSession(sm.sid)&&sm.g[sm.g.length-1].r.length===0&&sk){sm.g[sm.g.length-1].sk=sk.value||null;touchM(sm);render();}break;}
+    case 'addgame':{var sgp=sessionGroups().find(function(x){return x.sid===id;});if(sgp){ui.sid=id;ui.form={venue:sgp.venue,sessionDate:sgp.date,sessionTime:sgp.time};ui.err='';ui.view='new';render();window.scrollTo(0,0);}break;}
+    case 'open':{ui.mid=id;var m=curMatch();ui.sid=m&&m.sid?m.sid:null;ui.view=m&&(matchState(m).done||matchState(m).closed||(!canScore(m)&&!canManageSession(m.sid)))?'detail':'match';ui.shot='';ui.next=null;render();window.scrollTo(0,0);break;}
+    case 'detail':ui.mid=id;ui.view='detail';render();window.scrollTo(0,0);break;
+    case 'resume':{var rm=S.matches.find(function(x){return x.id===id;});if(rm&&(canScore(rm)||canManageSession(rm.sid))){ui.mid=id;ui.view='match';ui.next=null;render();window.scrollTo(0,0);}break;}
+    case 'pt':addRally(b.dataset.p,'w');break;
+    case 'er':addRally(b.dataset.p,'e');break;
+    case 'mtype':readForm();ui.form.ty=b.dataset.t;ui.err='';render();break;
+    case 'cxopen':ui.cx={id:id,kind:'ended',reason:''};render();break;
+    case 'cxkind':if(ui.cx){var ri=document.getElementById('cxr');if(ri)ui.cx.reason=ri.value;ui.cx.kind=b.dataset.k;render();}break;
+    case 'cxno':ui.cx=null;render();break;
+    case 'cxgo':{
+      var cm=S.matches.find(function(x){return x.id===id&&!x.del;}),ri2=document.getElementById('cxr');
+      if(cm&&canManageSession(cm.sid)&&!cm.st&&ui.cx){cm.st=ui.cx.kind;cm.cx={r:(ri2?ri2.value:'').trim().slice(0,140),at:Date.now(),by:meId()};touchM(cm);}
+      ui.cx=null;ui.mid=id;ui.view='detail';render();window.scrollTo(0,0);break;
+    }
+    case 'shot':ui.shot=ui.shot===b.dataset.s?'':b.dataset.s;render();break;
+    case 'undo':undo();break;
+    case 'nserve':if(ui.next){ui.next.f=+b.dataset.t;render();}break;
+    case 'nswap':if(ui.next){var T=+b.dataset.t,p=ui.next.pos,t=p[T*2];p[T*2]=p[T*2+1];p[T*2+1]=t;render();}break;
+    case 'startnext':{var m2=curMatch();if(m2&&ui.next&&canManageSession(m2.sid)){m2.g.push({f:ui.next.f,pos:ui.next.pos.slice(),r:[],sk:null});ui.next=null;ui.shot='';touchM(m2);render();window.scrollTo(0,0);}break;}
+    case 'delmatch':{
+      var delTarget=S.matches.find(function(x){return x.id===id;});if(!delTarget||!canManageSession(delTarget.sid))break;
+      if(ui.confirm!=='del:'+id){ui.confirm='del:'+id;render();break;}
+      var dm=S.matches.find(function(x){return x.id===id;});
+      if(dm){dm.del=1;dm.g=[];touchM(dm);}
+      ui.confirm=null;ui.mid=null;go('matches','list');break;
+    }
+    case 'ren':ui.edit=id;render();setTimeout(function(){var i=document.getElementById('rn');if(i){i.focus();i.select();}},0);break;
+    case 'cancel-edit':ui.edit=null;render();break;
+    case 'rmp':{
+      if(ui.confirm!=='rm:'+id){ui.confirm='rm:'+id;render();break;}
+      var rp=S.players.find(function(x){return x.id===id;});
+      if(rp){rp.del=1;touchP(rp);}
+      ui.confirm=null;render();break;
+    }
+    case 'player':ui.pid=id;ui.view='player';render();window.scrollTo(0,0);break;
+  }
+});
+document.addEventListener('submit',function(e){
+  var f=e.target.closest('form[data-form]');if(!f)return;
+  e.preventDefault();
+  if(f.dataset.form==='findplayer'){var pi=document.getElementById('playeridsearch');findPlayerByUniqueId(pi?pi.value:ui.playerSearchId);return;}
+  if(f.dataset.form==='join'){e.preventDefault();var ji=document.getElementById('joinid'),jr=document.getElementById('joinrole');ui.joinId=ji?ji.value:'';ui.joinRole=jr?jr.value:'player';joinSession(ui.joinId,ui.joinRole);return;}else if(f.dataset.form==='addp'){
+    if(ui.tab==='matches')readForm();
+    var inp=document.getElementById('np');
+    addPlayer(inp?inp.value:'');
+    render();
+    var i2=document.getElementById('np');if(i2&&ui.err)i2.focus();
+  }else if(f.dataset.form==='ren'){
+    var nm=(document.getElementById('rn').value||'').trim(),p=S.players.find(function(x){return x.id===f.dataset.id;});
+    if(!nm){ui.err='Name cannot be empty.';render();return;}
+    if(p){p.name=nm;touchP(p);}
+    ui.edit=null;ui.err='';render();
+  }
+});
+document.addEventListener('change',function(e){if(e.target.closest('#view')&&ui.tab==='matches'&&ui.view==='new'){readForm();if(e.target.id==='f-sessiontype')ui.form.ty=e.target.value;if(['f-tg','f-bo','f-a1','f-a2','f-b1','f-b2','f-sessiontype'].indexOf(e.target.id)>=0)render();}});
+document.addEventListener('input',function(e){
+  var id=e.target.id;
+  if(id==='ps'){ui.pq=e.target.value;var el=document.getElementById('plist');if(el)el.innerHTML=playerListHtml();}
+  else if(id==='mq'){ui.form.q=e.target.value;['a1','a2','b1','b2'].forEach(function(k){var sel=document.getElementById('f-'+k);if(sel){ui.form[k]=sel.value;sel.innerHTML=selOpts(sel.value);}});}
+});
+document.addEventListener('visibilitychange',function(){
+  if(document.visibilityState==='visible'){
+    window.__wl=null;if(ui.tab==='matches'&&ui.view==='match')keepAwake();
+  }
+});
+
+render();
+try{var qp=new URLSearchParams(location.search).get('join');if(qp){ui.joinId=qp;ui.err='Choose Player, Referee request, or Spectator to join this session.';render();}}catch(e){}
+if('serviceWorker' in navigator&&!window.__FAKE_CLOUD__)navigator.serviceWorker.register('sw.js').catch(function(){});
+setTimeout(function(){if(ui.auth==='loading'){ui.slow=true;render();}},8000);
+bootCloud().catch(function(){ui.auth='out';ui.err='Could not reach Google. Check your internet and refresh.';render();});
+})();
+</script>
+</body></html>
