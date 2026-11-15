@@ -304,6 +304,44 @@ var S={players:[],matches:[],sessions:[]};
 var cloud={api:null,user:null,pending:false,fromCache:true,meTried:false,stops:[]};
 var ui={tab:'matches',view:'list',mid:null,pid:null,sid:null,shot:'',next:null,err:'',edit:null,confirm:null,form:{},auth:'loading',pq:'',cx:null,joinId:'',joinRole:'player',playerSearchId:'',playerSearchResult:null,playerSearchError:'',playerSearchBusy:false};
 function clean(o){return JSON.parse(JSON.stringify(o));}
+   function normaliseSessionDoc(d){
+  if(!d || !Array.isArray(d.rounds)) return d;
+  d.rounds.forEach(function(rr){
+    (rr.fixtures||[]).forEach(function(ff){
+      var t=ff.teams;
+      if(Array.isArray(t)){
+        ff.teams=[
+          Array.isArray(t[0])?t[0]:[],
+          Array.isArray(t[1])?t[1]:[]
+        ];
+      }else if(t && typeof t==='object'){
+        ff.teams=[
+          Array.isArray(t.a)?t.a:[],
+          Array.isArray(t.b)?t.b:[]
+        ];
+      }else{
+        ff.teams=[[],[]];
+      }
+    });
+  });
+  return d;
+}
+
+function sessionForFirestore(d){
+  var out=clean(d);
+  (out.rounds||[]).forEach(function(rr){
+    (rr.fixtures||[]).forEach(function(ff){
+      var t=ff.teams||[];
+      var a=Array.isArray(t)?t[0]:t.a;
+      var b=Array.isArray(t)?t[1]:t.b;
+      ff.teams={
+        a:Array.isArray(a)?a:[],
+        b:Array.isArray(b)?b:[]
+      };
+    });
+  });
+  return out;
+}
 function authMsg(e){
   var c=(e&&e.code)||'';
   if(c==='auth/popup-closed-by-user'||c==='auth/cancelled-popup-request')return 'Sign-in was cancelled. Tap the button to try again.';
