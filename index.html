@@ -1139,8 +1139,130 @@ async function findPlayerByUniqueId(raw){
   ui.playerSearchBusy=false;render();
 }
 function GenCopy(v,label){label=label||'Invite link';if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(v).then(function(){ui.err=label+' copied.';render();}).catch(function(){ui.err='Copy failed. Long-press to copy: '+v;render();});else{ui.err='Copy this '+label.toLowerCase()+': '+v;render();}}
-async function joinSession(raw,role){try{var sid=String(raw||'').trim();var mt=sid.match(/[?&]join=([^&]+)/);if(mt)sid=decodeURIComponent(mt[1]);sid=sid.replace(/^.*\//,'');if(!sid){ui.err='Enter a Session ID or invite link.';render();return;}var d=await cloud.api.get('sessions',sid);if(!d){ui.err='Session not found. Check the ID or link.';render();return;}var members=d.members||{};var requests=d.roleRequests||{};var chosen=role||'player';var ids=d.memberUids||[];if(ids.indexOf(meId())>=0){var already=sessionDoc(sid);if(already)Object.assign(already,d);else S.sessions.push(d);ui.sid=sid;ui.view='session';ui.joinId='';ui.joinPrompt=false;ui.err='';startWatch();render();return;}if(chosen==='refereeRequest'){requests[meId()]='referee';members[meId()]='player';}else members[meId()]=chosen;if(ids.indexOf(meId())<0)ids.push(meId());d.memberUids=ids;d.members=members;d.roleRequests=requests;var myPlayer=S.players.find(function(p){return p.uid===meId();});if(chosen==='player'&&!myPlayer){var joinPid=uid();myPlayer={id:joinPid,pid:pidFor(joinPid),name:(cloud.user&&cloud.user.name)||'Player',uid:meId(),by:meId(),u:Date.now()};S.players.push(myPlayer);touchP(myPlayer);}d.roster=sessionRoster(d);if(chosen==='player'&&myPlayer){d.slots=Array.isArray(d.slots)?d.slots:[];var alreadySlot=d.slots.some(function(sl){return sl&&sl.playerId===myPlayer.id;});if(!alreadySlot){var empty=d.slots.find(function(sl){return sl&&!sl.playerId;});if(d.slots.length&& !empty){ui.err='All player slots are full. Ask the Session Admin to increase the player count.';render();return;}if(empty){var emptyNo=empty.number;empty.playerId=myPlayer.id;empty.joinedAt=Date.now();(d.rounds||[]).forEach(function(rr){(rr.fixtures||[]).forEach(function(ff){[0,1].forEach(function(tt){ff.teams[tt]=(ff.teams[tt]||[]).map(function(x){return x==='slot:'+emptyNo?myPlayer.id:x;});});});});}else if(!d.slots.length){d.slots.push({number:1,playerId:myPlayer.id,joinedAt:Date.now()});d.totalPlayers=1;}if(d.roster.indexOf(myPlayer.id)<0)d.roster.push(myPlayer.id);}}d.u=Date.now();await cloud.api.set('sessions',sid,d);var local=sessionDoc(sid);if(local)Object.assign(local,d);else S.sessions.push(d);ui.sid=sid;ui.view='session';ui.joinId='';ui.joinPrompt=false;startWatch();ui.err=chosen==='refereeRequest'?'Referee request sent. Session Admin or current Referee must approve it.':'';render();}catch(e){ui.err='Could not join. Check the Session ID and Firebase Rules.';render();}}
-document.addEventListener('click',function(e){
+
+async function joinSession(raw,role){
+  try{
+    var sid=String(raw||'').trim();
+    var mt=sid.match(/[?&]join=([^&]+)/);
+    if(mt)sid=decodeURIComponent(mt[1]);
+    sid=sid.replace(/^.*\//,'');
+    if(!sid){
+      ui.err='Enter a Session ID or invite link.';
+      render();return;
+    }
+
+    var d=await cloud.api.get('sessions',sid);
+    if(!d){
+      ui.err='Session not found. Check the ID or link.';
+      render();return;
+    }
+
+    var chosen=role||'player';
+    var members=d.members||{};
+    var requests=d.roleRequests||{};
+    var ids=Array.isArray(d.memberUids)?d.memberUids.slice():[];
+
+    if(chosen==='refereeRequest'){
+      requests[meId()]='referee';
+      members[meId()]='player';
+    }else{
+      members[meId()]=chosen;
+    }
+
+    if(ids.indexOf(meId())<0)ids.push(meId());
+
+    d.memberUids=ids;
+    d.members=members;
+    d.roleRequests=requests;
+
+    var myPlayer=S.players.find(function(p){
+      return p&&p.uid===meId();
+    });
+
+    if(chosen==='player'){
+      if(!myPlayer){
+        var joinPid=uid();
+        myPlayer={
+          id:joinPid,
+          pid:pidFor(joinPid),
+          name:(cloud.user&&cloud.user.name)||'Player',
+          uid:meId(),
+          by:meId(),
+          u:Date.now()
+        };
+        await cloud.api.set('players',myPlayer.id,clean(myPlayer));
+        S.players.push(myPlayer);
+      }
+
+      d.roster=sessionRoster(d);
+      d.slots=Array.isArray(d.slots)?d.slots:[];
+
+      var alreadySlot=d.slots.some(function(sl){
+        return sl&&sl.playerId===myPlayer.id;
+      });
+
+      if(!alreadySlot){
+        var empty=d.slots.find(function(sl){
+          return sl&&!sl.playerId;
+        });
+
+        if(d.slots.length&&!empty){
+          ui.err='All player slots are full. Ask the Session Admin to increase the player count.';
+          render();return;
+        }
+
+        if(empty){
+          var emptyNo=empty.number;
+          empty.playerId=myPlayer.id;
+          empty.joinedAt=Date.now();
+
+          (d.rounds||[]).forEach(function(rr){
+            (rr.fixtures||[]).forEach(function(ff){
+              if(!Array.isArray(ff.teams))return;
+              [0,1].forEach(function(tt){
+                ff.teams[tt]=(ff.teams[tt]||[]).map(function(x){
+                  return x==='slot:'+emptyNo?myPlayer.id:x;
+                });
+              });
+            });
+          });
+        }else if(!d.slots.length){
+          d.slots.push({
+            number:1,
+            playerId:myPlayer.id,
+            joinedAt:Date.now()
+          });
+          d.totalPlayers=1;
+        }
+
+        if(d.roster.indexOf(myPlayer.id)<0){
+          d.roster.push(myPlayer.id);
+        }
+      }
+    }
+
+    d.u=Date.now();
+    await cloud.api.set('sessions',sid,clean(d));
+
+    var local=sessionDoc(sid);
+    if(local)Object.assign(local,d);
+    else S.sessions.push(d);
+
+    ui.sid=sid;
+    ui.view='session';
+    ui.joinId='';
+    ui.joinPrompt=false;
+    ui.err='';
+    startWatch();
+    render();
+
+  }catch(e){
+    console.error(e);
+    ui.err='Could not join. Check the Session ID and Firebase Rules.';
+    render();
+  }
+}
+   document.addEventListener('click',function(e){
   var b=e.target.closest('[data-act]');if(!b||b.disabled)return;
   var a=b.dataset.act,id=b.dataset.id;
   switch(a){
