@@ -402,7 +402,15 @@ async function bootCloud(){
       signIn:function(){var p=new Au.GoogleAuthProvider();p.setCustomParameters({prompt:'select_account'});return Au.signInWithPopup(auth,p);},
       signOut:function(){return Au.signOut(auth);},
       watch:function(col,next,err){return F.onSnapshot(F.collection(db,col),{includeMetadataChanges:true},function(snap){next(snap.docs.map(function(d){return d.data();}),snap.metadata);},err);},
-      watchQuery:function(col,field,op,value,next,err){var q=F.query(F.collection(db,col),F.where(field,op,value));return F.onSnapshot(q,{includeMetadataChanges:true},function(snap){next(snap.docs.map(function(d){return d.data();}),snap.metadata);},err);},
+      watch:function(col,next,err){
+  return F.onSnapshot(F.collection(db,col),
+    {includeMetadataChanges:true},
+    function(snap){
+      var docs=snap.docs.map(function(d){return d.data();});
+      if(col==='sessions')docs=docs.map(normaliseSessionDoc);
+      next(docs,snap.metadata);
+    },err);
+},
       get:function(col,id){return F.getDoc(F.doc(db,col,id)).then(function(d){return d.exists()?d.data():null;});},
       findPlayerByPid:function(pid){var q=F.query(F.collection(db,'players'),F.where('pid','==',pid));return F.getDocs(q).then(function(snap){if(snap.empty)return null;var d=snap.docs[0].data();return d;});},
       set:function(col,id,data){return F.setDoc(F.doc(db,col,id),data);},
