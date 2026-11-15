@@ -801,7 +801,7 @@ function viewPlayers(){
     (res?'<div class="row sp"><b>'+esc(res.name)+'</b>'+(inList?'<span class="chip">In your list</span>':'<button class="btn sm primary" type="button" data-act="addfoundplayer">Add</button>')+'</div>':'')+'</div>';
   h+='<div class="stack" id="plist">'+playerListHtml()+'</div>';
   if(hasExamples())h+='<button class="btn sm" data-act="rmsample">Remove sample data</button>';
-  h+='<div class="card row sp" style="flex-wrap:nowrap"><p class="small muted" style="min-width:0">Signed in as <b>'+esc(cloud.user?cloud.user.name:'')+'</b>. Everything is backed up to your account and shared with the group.</p><button class="btn sm" data-act="signout">Sign out</button></div>';
+  h+='<div class="card row sp" style="flex-wrap:nowrap"><p class="small muted" style="min-width:0">Signed in as <b>'+esc(cloud.user?cloud.user.name:'')+'</b>. Everything is backed up to your account and shared with the group.</p><button class="btn" data-act="signout">Sign out</button></div>';
   h+='<p class="small muted">Tip: add a friend who has not signed up as a Guest. When they sign in, they tap "This is me" on their name and all their past stats join their account.</p>';
   return h+'</div>';
 }
