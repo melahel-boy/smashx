@@ -597,7 +597,7 @@ function roundHtml(d){
     if(r.bye&&(Array.isArray(r.bye)?r.bye.length:true))out+='<p class="small muted">Bye / Rest: '+esc((Array.isArray(r.bye)?r.bye:[r.bye]).map(function(x){return sessionPlayerName(x,d);}).join(', '))+'</p>';
     (r.fixtures||[]).forEach(function(f,j){out+='<div class="card stack"><div class="row sp"><div class="small"><b>Game '+(j+1)+'</b><br>'+esc((f.teams[0]||[]).map(function(x){return sessionPlayerName(x,d);}).join(' & '))+' <b>vs</b> '+esc((f.teams[1]||[]).map(function(x){return sessionPlayerName(x,d);}).join(' & '))+'</div><div class="row"><button class="btn sm" data-act="shufflegame" data-id="'+esc(d.id)+'" data-rid="'+esc(r.id)+'" data-fid="'+esc(f.id||'')+'" title="Shuffle">⇄</button><button class="btn sm" data-act="editgame" data-id="'+esc(d.id)+'" data-rid="'+esc(r.id)+'" data-fid="'+esc(f.id||'')+'">Edit</button><button class="btn sm danger" data-act="deletegame" data-id="'+esc(d.id)+'" data-rid="'+esc(r.id)+'" data-fid="'+esc(f.id||'')+'">Delete</button></div></div></div>';});
     out+='</div>';});
-  out+='<button class="btn block" data-act="addrround" data-id="'+esc(d.id)+'">＋ Add round</button>';return out;
+  return out;
 }
 function viewSession(){
   var g=sessionGroups().find(function(x){return x.sid===ui.sid||x.key===ui.sid;});
