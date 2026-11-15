@@ -577,7 +577,12 @@ async function startSessionFixture(sid,rid,fid){
   if(fx.matchId){
     ui.mid=fx.matchId;ui.sid=sid;ui.view='match';render();return;
   }
-  var ids=(fx.teams||[[],[]]).reduce(function(a,t){return a.concat(t||[]);},[]);
+  var teams=Array.isArray(fx.teams)?fx.teams:[];
+if(teams.length!==2||!Array.isArray(teams[0])||!Array.isArray(teams[1])){
+  ui.err='This game has invalid player data. Please edit the game and select players again.';
+  render();return;
+}
+var ids=teams[0].concat(teams[1]).filter(function(x){return typeof x==='string'&&x.indexOf('slot:')!==0;});
   if(ids.length<2||new Set(ids).size!==ids.length){
     ui.err='Invalid fixture. Check the players.';render();return;
   }
