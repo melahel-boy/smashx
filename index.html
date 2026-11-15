@@ -472,7 +472,13 @@ function players(){
     return Array.isArray(p.friends)&&p.friends.some(function(fid){return mineIds.indexOf(fid)>=0;});
   });
 }
-function liveMatches(){return S.matches.filter(function(m){return !m.del;});}
+function liveMatches(){
+  var map={};
+  S.matches.forEach(function(m){
+    if(m&&m.id&&!m.del)map[m.id]=m;
+  });
+  return Object.keys(map).map(function(id){return map[id];});
+}
 function nameOf(id){var p=S.players.find(function(x){return x.id===id;});return p?p.name:'Player';}
 function teamName(m,T){return teamIds(m,T).map(nameOf).join(' & ');}
 function typeLabel(m){return Array.isArray(m&&m.tm)&&m.tm.length===2?'Singles':'Doubles';}
