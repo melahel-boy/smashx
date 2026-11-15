@@ -479,8 +479,7 @@ function liveMatches(){
   });
   return Object.keys(map).map(function(id){return map[id];});
 }
-function nameOf(id){var p=S.players.find(function(x){return x.id===id;});return p?p.name:'Player';}
-function teamName(m,T){return teamIds(m,T).map(nameOf).join(' & ');}
+function nameOf(id){var p=S.players.find(function(x){return x&&x.id===id;});if(p)return p.name;for(var i=0;i<S.sessions.length;i++){var d=S.sessions[i],g=d&&d.guestPlayers&&d.guestPlayers[id];if(g)return g.name||'Guest Player';}return 'Player';} function teamName(m,T){return teamIds(m,T).map(nameOf).join(' & ');}
 function typeLabel(m){return Array.isArray(m&&m.tm)&&m.tm.length===2?'Singles':'Doubles';}
 function curMatch(){return S.matches.find(function(m){return m.id===ui.mid&&!m.del;});}
 function fmtDate(t){try{return new Date(t).toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short'});}catch(e){return '';}}
@@ -573,8 +572,8 @@ function viewList(){
 function saveSessionDoc(d){d.u=Date.now();var at=S.sessions.findIndex(function(x){return x.id===d.id;});if(at>=0)S.sessions[at]=d;else S.sessions.push(d);cloud.api.set('sessions',d.id,clean(d)).catch(writeErr);}
 function sessionRoster(d){return d&&Array.isArray(d.roster)?d.roster.filter(Boolean):[];}
 function rescheduleSessionAfterRosterChange(d){var need=d.matchType==='s'?2:4;if(sessionRoster(d).length>=need){roundRobin(d);}else{d.rounds=(d.rounds||[]).map(function(rr){return {id:rr.id,name:rr.name,fixtures:(rr.fixtures||[]).filter(function(fx){return !!(fx.matchId||fx.startedAt);}),bye:rr.bye||[],createdAt:rr.createdAt||Date.now()};}).filter(function(rr){return rr.fixtures.length>0;});saveSessionDoc(d);ui.err='Player list updated. Add '+(need-sessionRoster(d).length)+' more player(s) to create new games.';render();}}
-function sessionPlayerName(id,d){if(String(id).indexOf('slot:')===0)return 'Player '+String(id).slice(5);return nameOf(id);}
-async function deleteSessionMatch(mid){
+function sessionPlayerName(id,d){if(String(id).indexOf('slot:')===0)return 'Player '+String(id).slice(5);var g=d&&d.guestPlayers&&d.guestPlayers[id];return g?g.name:nameOf(id);}
+   async function deleteSessionMatch(mid){
   var m=S.matches.find(function(x){return x&&x.id===mid;});
   await cloud.api.del('matches',mid);
   S.matches=S.matches.filter(function(x){return !x||x.id!==mid;});
@@ -818,7 +817,7 @@ function selOpts(sel){
 }
 
 function viewNew(){
-  var pl=players(),f=ui.form;
+  var pl=players().filter(function(p){return !!p.uid;}),f=ui.form;
   var h='<div class="row sp"><button class="btn sm" data-act="back">← Sessions</button></div><h2>'+(ui.sid?'Add game to session':'Create Session')+'</h2>';
   if(!ui.sid){
     if(!f.sessionDate)f.sessionDate=localDateValue();
@@ -967,9 +966,9 @@ function viewDetail(){
 }
 
 function playerListHtml(){
-  var pl=players(),st=computeStats(liveMatches()).P,h='';
-  if(!pl.length)return emptyCard('No players yet','Add a guest by name, or add a friend using their Unique ID. You need four for a doubles match, two for singles.','');
-  pl.forEach(function(p){
+  var pl=players().filter(function(p){return !!p.uid;}),st=computeStats(liveMatches()).P,h='';
+  if(!pl.length)return emptyCard('No registered players yet','Players with accounts will appear here. Add guests inside a Session.','');
+   pl.forEach(function(p){
     var s=st[p.id]||{m:0,mw:0};
     if(ui.edit===p.id){
       h+='<form data-form="ren" data-id="'+p.id+'" class="card inl"><input type="text" id="rn" value="'+esc(p.name)+'" maxlength="24" aria-label="New name"><button class="btn primary sm" type="submit">Save</button><button class="btn sm" type="button" data-act="cancel-edit">Cancel</button></form>';
@@ -993,8 +992,7 @@ function playerListHtml(){
 function viewPlayers(){
   var res=ui.playerSearchResult,inList=!!(res&&players().some(function(p){return p.id===res.id;}));
   var h='<h2>Players</h2><div class="stack">';
-  h+='<form data-form="addp" class="card inl"><input type="text" id="np" placeholder="Add a player" maxlength="24" autocomplete="off" aria-label="Player name"><button class="btn primary" type="submit">Add</button></form>';
-  if(ui.err)h+='<p class="err-msg">'+esc(ui.err)+'</p>';
+    if(ui.err)h+='<p class="err-msg">'+esc(ui.err)+'</p>';
   h+='<div class="card stack"><form data-form="findplayer" class="field"><label for="playeridsearch">Add player using their Unique ID</label><div class="inl"><input type="text" id="playeridsearch" placeholder="Paste SX- ID" autocomplete="off" value="'+esc(ui.playerSearchId||'')+'"><button class="btn primary" type="submit"'+(ui.playerSearchBusy?' disabled':'')+'>Search</button></div></form>'+
     (ui.playerSearchError?'<p class="err-msg">'+esc(ui.playerSearchError)+'</p>':'')+
     (res?'<div class="row sp"><b>'+esc(res.name)+'</b>'+(inList?'<span class="chip">In your list</span>':'<button class="btn sm primary" type="button" data-act="addfoundplayer">Add</button>')+'</div>':'')+'</div>';
@@ -1002,8 +1000,8 @@ function viewPlayers(){
   h+=viewMe();
    if(hasExamples())h+='<button class="btn sm" data-act="rmsample">Remove sample data</button>';
   h+='<div class="card row sp" style="flex-wrap:nowrap"><p class="small muted" style="min-width:0">Signed in as <b>'+esc(cloud.user?cloud.user.name:'')+'</b>. Everything is backed up to your account and shared with the group.</p><button class="btn" data-act="signout">Sign out</button></div>';
-  h+='<p class="small muted">Tip: add a friend who has not signed up as a Guest. When they sign in, they tap "This is me" on their name and all their past stats join their account.</p>';
-  return h+'</div>';
+  h+='<p class="small muted">Only players with accounts appear in this list. Add account-free Guest Players inside a Session.</p>';
+   return h+'</div>';
 }
 
 function metric(v,l){return '<div><b>'+v+'</b><span>'+l+'</span></div>';}
