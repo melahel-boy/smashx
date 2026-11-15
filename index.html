@@ -1353,7 +1353,7 @@ async function joinSession(raw,role){
 
   }catch(e){
     console.error(e);
-    ui.err='Could not join. Check the Session ID and Firebase Rules.';
+    ui.joinError='Could not join. Check the Session ID and Firebase Rules.';
     render();
   }
 }
@@ -1373,6 +1373,7 @@ async function joinSession(raw,role){
     case 'openjoin':ui.joinId='';ui.joinRole='player';ui.joinStep='link';ui.joinError='';ui.joinPrompt=true;ui.err='';render();break;
 case 'joinnext':{var ji=document.getElementById('joinid');ui.joinId=ji?ji.value.trim():'';if(!ui.joinId){ui.joinError='Please paste a Session Link or ID.';}else{ui.joinStep='role';ui.joinError='';}render();break;}
 case 'confirmjoin':{var jr=document.getElementById('joinrole');ui.joinRole=jr?jr.value:'player';ui.joinError='';joinSession(ui.joinId,ui.joinRole);break;}
+     case 'canceljoin':ui.joinPrompt=false;ui.joinId='';ui.joinStep='';ui.joinError='';render();break;
      case 'copyplayerid':{var cv=b.dataset.id||'';if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(cv).then(function(){ui.err='Player ID copied. Share it with others.';render();}).catch(function(){ui.err='Player ID: '+cv;render();});else{ui.err='Player ID: '+cv;render();}break;}
     case 'addfoundplayer':{
       var fp=ui.playerSearchResult;
