@@ -522,7 +522,7 @@ function courtOf(st,T,id){
 }
 function hasExamples(){return false;}
 function meId(){return cloud.user?cloud.user.uid:'';}
-function gameStatsFor(g){var o={};g.r.forEach(function(raw){var r=parseR(raw);var x=o[r.p]||(o[r.p]={w:0,e:0,f:0});if(r.k==='w')x.w++;else if(r.k==='f')x.f++;else x.e++;});return o;}
+function gameStatsFor(g){var o={};(g&&Array.isArray(g.r)?g.r:[]).forEach(function(raw){var r=parseR(raw);var x=o[r.p]||(o[r.p]={w:0,e:0,f:0});if(r.k==='w')x.w++;else if(r.k==='f')x.f++;else x.e++;});return o;}
 function rallyLines(m,g,st){
   var s=[0,0],out=[];
   g.r.forEach(function(raw,i){
