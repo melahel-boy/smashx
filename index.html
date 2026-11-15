@@ -816,45 +816,47 @@ function selOpts(sel){
   
   return '<option value="">Choose…</option>'+players().map(function(p){return '<option value="'+p.id+'"'+(p.id===sel?' selected':'')+'>'+esc(p.name)+'</option>'; }).join('');
 }
+
 function viewNew(){
   var pl=players(),f=ui.form;
   var h='<div class="row sp"><button class="btn sm" data-act="back">← Sessions</button></div><h2>'+(ui.sid?'Add game to session':'Create Session')+'</h2>';
   if(!ui.sid){
     if(!f.sessionDate)f.sessionDate=localDateValue();
     if(!f.sessionTime)f.sessionTime=localTimeValue();
-    h+='<div class="card stack"><div class="field"><label for="f-venue">Venue</label><input type="text" id="f-venue" maxlength="80" placeholder="Enter venue" value="'+esc(f.venue||'')+'"></div>'+
-      '<div class="grid2"><div class="field"><label for="f-sessionDate">Date</label><input type="date" id="f-sessionDate" value="'+esc(f.sessionDate)+'"></div>'+
-      '<div class="field"><label for="f-sessionTime">Time</label><input type="time" id="f-sessionTime" value="'+esc(f.sessionTime)+'"></div></div>'+
-      '<div class="field"><label for="f-visibility">Session access</label><select id="f-visibility"><option value="public"'+((f.visibility||'public')==='public'?' selected':'')+'>Public</option><option value="private"'+(f.visibility==='private'?' selected':'')+'>Private</option></select></div><div class="field"><label for="f-sessiontype">Round-Robin match type</label><select id="f-sessiontype"><option value="d"'+((f.sessionType||'d')==='d'?' selected':'')+'>Doubles</option><option value="s"'+(f.sessionType==='s'?' selected':'')+'>Singles</option></select></div><div class="field"><label for="f-creatorRole">Your role in this Session</label><select id="f-creatorRole"><option value="player"'+((f.creatorRole||'player')==='player'?' selected':'')+'>Player</option><option value="referee"'+(f.creatorRole==='referee'?' selected':'')+'>Referee</option></select></div><div class="field"><label for="f-totalPlayers">Total number of player slots</label><input type="number" id="f-totalPlayers" min="2" max="100" step="1" inputmode="numeric" value="'+esc(f.totalPlayers||'4')+'" placeholder="e.g. 8"><p class="small muted">Empty slots stay open for players who join later.</p></div></div>'; 
-  }else{
-    h+='<p class="small muted">'+esc(f.venue||'')+' · '+esc(f.sessionDate||'')+' '+esc(f.sessionTime||'')+'</p>';
+    if(!f.step)f.step=1;
+    if(!f.totalPlayers)f.totalPlayers='4';
+    var step=Math.max(1,Math.min(4,parseInt(f.step,10)||1));
+    h+='<div class="card stack"><div class="row sp"><b>Step '+step+' of 4</b><span class="small muted">'+(step===1?'Session details':step===2?'Session setup':step===3?'Add players':'Review')+'</span></div><div style="height:6px;background:var(--line);border-radius:8px;overflow:hidden"><div style="height:6px;width:'+(step*25)+'%;background:var(--accent);border-radius:8px"></div></div></div>';
+    if(step===1){
+      h+='<div class="card stack"><h3>Session details</h3><div class="field"><label for="f-venue">Venue</label><input type="text" id="f-venue" maxlength="80" placeholder="Enter venue" value="'+esc(f.venue||'')+'"></div><div class="grid2"><div class="field"><label for="f-sessionDate">Date</label><input type="date" id="f-sessionDate" value="'+esc(f.sessionDate)+'"></div><div class="field"><label for="f-sessionTime">Time</label><input type="time" id="f-sessionTime" value="'+esc(f.sessionTime)+'"></div></div></div>';
+    }else if(step===2){
+      h+='<div class="card stack"><h3>Session setup</h3><div class="field"><label for="f-visibility">Who can join?</label><select id="f-visibility"><option value="public"'+((f.visibility||'public')==='public'?' selected':'')+'>Public</option><option value="private"'+(f.visibility==='private'?' selected':'')+'>Private</option></select></div><div class="field"><label for="f-sessiontype">Match type</label><select id="f-sessiontype"><option value="d"'+((f.sessionType||'d')==='d'?' selected':'')+'>Doubles</option><option value="s"'+(f.sessionType==='s'?' selected':'')+'>Singles</option></select></div><div class="field"><label for="f-creatorRole">Your role</label><select id="f-creatorRole"><option value="player"'+((f.creatorRole||'player')==='player'?' selected':'')+'>Player</option><option value="referee"'+(f.creatorRole==='referee'?' selected':'')+'>Referee</option></select></div><div class="field"><label for="f-totalPlayers">Total player slots</label><input type="number" id="f-totalPlayers" min="'+((f.sessionType||'d')==='s'?2:4)+'" max="100" step="1" inputmode="numeric" value="'+esc(f.totalPlayers)+'" placeholder="e.g. 8"><p class="small muted">Empty slots can be filled when players join later.</p></div></div>';
+    }else if(step===3){
+      var total=Math.max((f.sessionType||'d')==='s'?2:4,Math.min(100,parseInt(f.totalPlayers,10)||4));
+      h+='<div class="card stack"><h3>Add players</h3><p class="small muted">Select registered players now. Leave a slot empty if that player will join later.</p><div class="slot-grid">'+Array.from({length:total},function(_,i){var n=i+1,cur=(f.sessionSlots||{})[n]||'';if(n===1&&(f.creatorRole||'player')==='player')return '<div class="slot-card"><b>Player 1 · You</b><span>'+esc((cloud.user&&cloud.user.name)||'Session Creator')+'</span></div>';return '<div class="slot-card"><b>Player '+n+'</b><select id="slot_'+n+'"><option value="">Waiting to join</option>'+pl.map(function(p){return '<option value="'+esc(p.id)+'"'+(cur===p.id?' selected':'')+'>'+esc(p.name)+'</option>';}).join('')+'</select></div>';}).join('')+'</div></div>';
+    }else{
+      var chosen=Object.keys(f.sessionSlots||{}).filter(function(k){return !!f.sessionSlots[k];}).length;
+      if((f.creatorRole||'player')==='player')chosen++;
+      h+='<div class="card stack"><h3>Review session</h3><div class="row sp"><span class="muted">Venue</span><b>'+esc(f.venue||'Not set')+'</b></div><div class="row sp"><span class="muted">Date & time</span><b>'+esc(f.sessionDate||'')+' · '+esc(f.sessionTime||'')+'</b></div><div class="row sp"><span class="muted">Access</span><b>'+((f.visibility||'public')==='private'?'Private':'Public')+'</b></div><div class="row sp"><span class="muted">Match type</span><b>'+((f.sessionType||'d')==='s'?'Singles':'Doubles')+'</b></div><div class="row sp"><span class="muted">Your role</span><b>'+((f.creatorRole||'player')==='referee'?'Referee':'Player')+'</b></div><div class="row sp"><span class="muted">Player slots</span><b>'+esc(f.totalPlayers||'4')+'</b></div><div class="row sp"><span class="muted">Players selected</span><b>'+chosen+'</b></div><p class="small muted">You can invite others to fill the remaining slots after creating the session.</p></div>';
+    }
+    if(ui.err)h+='<p class="err-msg">'+esc(ui.err)+'</p>';
+    h+='<div class="grid2">'+(step>1?'<button class="btn" data-act="wizback">Previous</button>':'<button class="btn" data-act="back">Cancel</button>')+(step<4?'<button class="btn primary" data-act="wiznext">Next</button>':'<button class="btn primary" data-act="createsessiononly">Create Session</button>')+'</div>';
+    return h;
   }
+  h+='<p class="small muted">'+esc(f.venue||'')+' · '+esc(f.sessionDate||'')+' '+esc(f.sessionTime||'')+'</p>';
   if(!f.tg){f.tg='21';f.bo='3';f.sv='0';}
   if(!f.ty)f.ty=f.sessionType||'d';
   var sg=f.ty==='s',need=sg?2:4;
   h+='<div class="stack">';
-  if(ui.sid){
-    h+='<div class="card stack"><div class="field"><label>Game type</label><div class="grid2">'+
-       '<button class="btn'+(sg?'':' primary')+'" data-act="mtype" data-t="d">Doubles</button>'+
-       '<button class="btn'+(sg?' primary':'')+'" data-act="mtype" data-t="s">Singles</button></div></div></div>';
-    if(pl.length<need)h+='<div class="card"><p>You need '+need+' players for this game. You have '+pl.length+'.</p><form data-form="addp" class="inl" style="margin-top:8px"><input type="text" id="np" placeholder="Player name" maxlength="24" autocomplete="off"><button class="btn primary" type="submit">Add</button></form></div>';
-    
-    function pick(T){var a=T===0?'a':'b',col=T===0?'ta':'tb';var one='<div class="field"><label for="f-'+a+'1">'+(sg?'Player':'Player 1')+'</label><select id="f-'+a+'1">'+selOpts(f[a+'1'])+'</select></div>';var two=sg?'':'<div class="field"><label for="f-'+a+'2">Player 2</label><select id="f-'+a+'2">'+selOpts(f[a+'2'])+'</select></div>';return '<div class="card stack"><div class="row sp"><b style="color:var(--'+col+')">Team '+(T===0?'A':'B')+'</b>'+(sg?'':'<span class="small muted">Player 1 starts in the right court</span>')+'</div><div class="'+(sg?'':'grid2')+'">'+one+two+'</div></div>';}
-    h+=pick(0)+pick(1);
-  }else{
-    h+='<div class="card stack"><b>Player slots</b><p class="small muted">Choose available friends for the slots. Empty slots can be filled when people join using the session link.</p><div class="slot-grid">'+Array.from({length:Math.max(2,Math.min(100,parseInt(f.totalPlayers,10)||4))},function(_,i){var n=i+1,cur=(f.sessionSlots||{})[n]||'';if(n===1&&(f.creatorRole||'player')==='player')return '<div class="slot-card"><b>Player 1 · Creator</b><span>'+esc((cloud.user&&cloud.user.name)||'You')+'</span></div>';if(n===1&&f.creatorRole==='referee')return '<div class="slot-card"><b>Player 1</b><select id="slot_'+n+'"><option value="">Waiting to join</option>'+pl.map(function(p){return '<option value="'+esc(p.id)+'"'+(cur===p.id?' selected':'')+'>'+esc(p.name)+'</option>';}).join('')+'</select></div>';return '<div class="slot-card"><b>Player '+n+'</b><select id="slot_'+n+'"><option value="">Waiting to join</option>'+pl.map(function(p){return '<option value="'+esc(p.id)+'"'+(cur===p.id?' selected':'')+'>'+esc(p.name)+'</option>';}).join('')+'</select></div>';}).join('')+'</div></div>';
-  }
+  h+='<div class="card stack"><div class="field"><label>Game type</label><div class="grid2"><button class="btn'+(sg?'':' primary')+'" data-act="mtype" data-t="d">Doubles</button><button class="btn'+(sg?' primary':'')+'" data-act="mtype" data-t="s">Singles</button></div></div></div>';
+  if(pl.length<need)h+='<div class="card"><p>You need '+need+' players for this game. You have '+pl.length+'.</p><form data-form="addp" class="inl" style="margin-top:8px"><input type="text" id="np" placeholder="Player name" maxlength="24" autocomplete="off"><button class="btn primary" type="submit">Add</button></form></div>';
+  function pick(T){var a=T===0?'a':'b',col=T===0?'ta':'tb';var one='<div class="field"><label for="f-'+a+'1">'+(sg?'Player':'Player 1')+'</label><select id="f-'+a+'1">'+selOpts(f[a+'1'])+'</select></div>';var two=sg?'':'<div class="field"><label for="f-'+a+'2">Player 2</label><select id="f-'+a+'2">'+selOpts(f[a+'2'])+'</select></div>';return '<div class="card stack"><div class="row sp"><b style="color:var(--'+col+')">Team '+(T===0?'A':'B')+'</b>'+(sg?'':'<span class="small muted">Player 1 starts in the right court</span>')+'</div><div class="'+(sg?'':'grid2')+'">'+one+two+'</div></div>';}
+  h+=pick(0)+pick(1);
   function opt(v,l,cur){return '<option value="'+v+'"'+(String(cur)===String(v)?' selected':'')+'>'+l+'</option>';}
   var cust=String(f.bo)==='custom';
-  h+='<div class="card stack"><div class="grid2">'+
-     '<div class="field"><label for="f-tg">Game to</label><select id="f-tg">'+opt(21,'21 points',f.tg)+opt(15,'15 points',f.tg)+opt(11,'11 points',f.tg)+'</select></div>'+
-     '<div class="field"><label for="f-bo">Match</label><select id="f-bo">'+opt(1,'1 game',f.bo)+opt(3,'Best of 3',f.bo)+opt(5,'Best of 5',f.bo)+opt('custom','Custom',f.bo)+'</select></div></div>'+
-     (cust?'<div class="field"><label for="f-cb">Number of games (odd, 1 to 9)</label><input type="number" id="f-cb" inputmode="numeric" min="1" max="9" step="2" placeholder="e.g. 7" value="'+esc(f.cb||'')+'"></div>':'')+
-     (ui.sid?'<div class="field"><label for="f-sv">Serves first</label><select id="f-sv">'+opt(0,'Team A',f.sv)+opt(1,'Team B',f.sv)+'</select></div>':'')+
-     '<p class="small muted">Win by 2 points. At '+(CAP[+f.tg]||30)+' the next point wins.</p></div>';
+  h+='<div class="card stack"><div class="grid2"><div class="field"><label for="f-tg">Game to</label><select id="f-tg">'+opt(21,'21 points',f.tg)+opt(15,'15 points',f.tg)+opt(11,'11 points',f.tg)+'</select></div><div class="field"><label for="f-bo">Match</label><select id="f-bo">'+opt(1,'1 game',f.bo)+opt(3,'Best of 3',f.bo)+opt(5,'Best of 5',f.bo)+opt('custom','Custom',f.bo)+'</select></div></div>'+(cust?'<div class="field"><label for="f-cb">Number of games (odd, 1 to 9)</label><input type="number" id="f-cb" inputmode="numeric" min="1" max="9" step="2" placeholder="e.g. 7" value="'+esc(f.cb||'')+'"></div>':'')+'<div class="field"><label for="f-sv">Serves first</label><select id="f-sv">'+opt(0,'Team A',f.sv)+opt(1,'Team B',f.sv)+'</select></div><p class="small muted">Win by 2 points. At '+(CAP[+f.tg]||30)+' the next point wins.</p></div>';
   if(ui.err)h+='<p class="err-msg">'+esc(ui.err)+'</p>';
-  var selectedIds=ui.sid?(sg?[f.a1,f.b1]:[f.a1,f.a2,f.b1,f.b2]).filter(Boolean):Object.keys(f.sessionSlots||{}).filter(function(k){return !!f.sessionSlots[k];});if(!ui.sid&&((f.creatorRole||'player')==='player'))selectedIds.push('creator');
-  h+='<button class="btn primary block" data-act="'+(ui.sid?'start':'createsessiononly')+'">'+(ui.sid?'Start game':(selectedIds.length?'Create Session':'Create Session Without Players'))+'</button></div>';
+  h+='<button class="btn primary block" data-act="start">Start game</button></div>';
   return h;
 }
 function readForm(){
@@ -1370,9 +1372,11 @@ async function joinSession(raw,role){
     case 'back':if(ui.tab==='stats')go('stats','stats');else if(ui.view==='match'||ui.view==='detail'){if(ui.sid){ui.view='session';ui.mid=null;render();window.scrollTo(0,0);}else go('matches','list');}else if(ui.view==='new'&&ui.sid){ui.view='session';render();window.scrollTo(0,0);}else go('matches','list');break;
     case 'start':startMatch();break;
     case 'createsessiononly':createSessionOnly();break;
-    case 'openjoin':ui.joinId='';ui.joinRole='player';ui.joinStep='link';ui.joinError='';ui.joinPrompt=true;ui.err='';render();break;
-case 'joinnext':{var ji=document.getElementById('joinid');ui.joinId=ji?ji.value.trim():'';if(!ui.joinId){ui.joinError='Please paste a Session Link or ID.';}else{ui.joinStep='role';ui.joinError='';}render();break;}
-case 'confirmjoin':{var jr=document.getElementById('joinrole');ui.joinRole=jr?jr.value:'player';ui.joinError='';joinSession(ui.joinId,ui.joinRole);break;}
+    case 'wiznext':{readForm();var wf=ui.form,ws=Math.max(1,parseInt(wf.step,10)||1);if(ws===1&&(!(wf.venue||'').trim()||!wf.sessionDate||!wf.sessionTime)){ui.err='Enter venue, date and time to continue.';render();break;}if(ws===2){var wn=parseInt(wf.totalPlayers,10);if(!wn||wn<2||wn>100){ui.err='Enter a total player count between 2 and 100.';render();break;}wf.totalPlayers=String(wn);}wf.step=Math.min(4,ws+1);ui.err='';render();window.scrollTo(0,0);break;}
+    case 'wizback':{readForm();ui.form.step=Math.max(1,(parseInt(ui.form.step,10)||1)-1);ui.err='';render();window.scrollTo(0,0);break;}
+     case 'openjoin':ui.joinId='';ui.joinRole='player';ui.joinStep='link';ui.joinError='';ui.joinPrompt=true;ui.err='';render();break;
+     case 'joinnext':{var ji=document.getElementById('joinid');ui.joinId=ji?ji.value.trim():'';if(!ui.joinId){ui.joinError='Please paste a Session Link or ID.';}else{ui.joinStep='role';ui.joinError='';}render();break;}
+    case 'confirmjoin':{var jr=document.getElementById('joinrole');ui.joinRole=jr?jr.value:'player';ui.joinError='';joinSession(ui.joinId,ui.joinRole);break;}
      case 'canceljoin':ui.joinPrompt=false;ui.joinId='';ui.joinStep='';ui.joinError='';render();break;
      case 'copyplayerid':{var cv=b.dataset.id||'';if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(cv).then(function(){ui.err='Player ID copied. Share it with others.';render();}).catch(function(){ui.err='Player ID: '+cv;render();});else{ui.err='Player ID: '+cv;render();}break;}
     case 'addfoundplayer':{
