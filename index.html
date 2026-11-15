@@ -499,7 +499,7 @@ function sessionDoc(sid){return S.sessions.find(function(x){return x.id===sid;})
 function myRole(sid){var x=sessionDoc(sid);if(!x)return '';if(isDefaultAdmin())return 'admin';if(x.adminUid===meId())return 'admin';return x.members&&x.members[meId()]||'';}
 function isReferee(sid){var x=sessionDoc(sid);return !!(x&&x.refereeUid===meId());}
 function canManageSession(sid){return isDefaultAdmin()||myRole(sid)==='admin'||isReferee(sid);}
-function canScore(m){var sk=m.g&&m.g.length?m.g[m.g.length-1].sk:null;return !!sk&&(isDefaultAdmin()||isReferee(m.sid)||sk===meId());}
+function canScore(m){var sk=m.g&&m.g.length?m.g[m.g.length-1].sk:null;return sk?(isDefaultAdmin()||isReferee(m.sid)||sk===meId()):canManageSession(m.sid);}
 function isMember(sid){var r=myRole(sid);return !!r&&r!=='refereeRequest';}
 function sessionLink(sid){return location.origin+location.pathname+'?join='+encodeURIComponent(sid);}
 function sessionCategory(g,now){
@@ -921,8 +921,7 @@ function viewScore(){
       SHOTS.map(function(x){return '<button class="sc-btn'+(ui.shot===x[0]?' on':'')+'" data-act="shot" data-s="'+x[0]+'">'+x[1]+'</button>';}).join('')+'</div></div>';
   }
   h+='<div class="stack">'+(ui.flip?[teamCard(m,ms,1,gs,over),teamCard(m,ms,0,gs,over)]:[teamCard(m,ms,0,gs,over),teamCard(m,ms,1,gs,over)]).join('')+'</div>';
-  if((m.g[gi-1].r||[]).length===0&&canManageSession(m.sid)){var opts='<option value="">Choose Scorekeeper</option>';m.tm.forEach(function(pid){var pp=S.players.find(function(x){return x.id===pid;});if(pp&&pp.uid&&sessionDoc(m.sid)&&sessionDoc(m.sid).members&&sessionDoc(m.sid).members[pp.uid]==='player')opts+='<option value="'+esc(pp.uid)+'">'+esc(pp.name)+'</option>';});var sd=sessionDoc(m.sid);if(sd&&sd.refereeUid)opts+='<option value="'+esc(sd.refereeUid)+'">Referee</option>';h+='<div class="card stack"><b>Appoint Scorekeeper for Game '+gi+'</b><div class="inl"><select id="scorekeeperuid">'+opts+'</select><button class="btn primary" data-act="setsk" data-id="'+m.id+'">Confirm</button></div><p class="small muted">Only the appointed Scorekeeper or Referee can change this game’s score.</p></div>'; }else if(g.sk){h+='<p class="small muted">Scorekeeper: '+esc((S.players.find(function(x){return x.uid===g.sk;})||{}).name|| (sessionDoc(m.sid)&&sessionDoc(m.sid).refereeUid===g.sk?'Referee':'Appointed member'))+'</p>'; }
-
+  if((m.g[gi-1].r||[]).length===0&&canManageSession(m.sid)){var opts='<option value="">Not appointed — Session Admin can score</option>',sd=sessionDoc(m.sid);sessionRoster(sd).forEach(function(pid){var pp=S.players.find(function(x){return x.id===pid;});if(pp&&pp.uid&&sd&&sd.members&&sd.members[pp.uid]==='player')opts+='<option value="'+esc(pp.uid)+'">'+esc(pp.name)+'</option>';});if(sd&&sd.refereeUid)opts+='<option value="'+esc(sd.refereeUid)+'">Referee</option>';h+='<div class="card stack"><b>Appoint Scorekeeper for Game '+gi+'</b><div class="inl"><select id="scorekeeperuid">'+opts+'</select><button class="btn primary" data-act="setsk" data-id="'+m.id+'">Confirm</button></div><p class="small muted">If no Scorekeeper is appointed, Session Admin can score this game.</p></div>';}else if(g.sk){h+='<p class="small muted">Scorekeeper: '+esc((S.players.find(function(x){return x.uid===g.sk;})||{}).name|| (sessionDoc(m.sid)&&sessionDoc(m.sid).refereeUid===g.sk?'Referee':'Appointed member'))+'</p>'; }
   if(over&&!ms.done){
     var nx=ui.next;
     if(!nx||nx.mid!==m.id||nx.n!==gi){var lg=m.g[gi-1];nx=ui.next={mid:m.id,n:gi,f:g.winner,pos:lg.pos.slice()};}
