@@ -1321,11 +1321,7 @@ async function joinSession(raw,role){
           return sl&&!sl.playerId;
         });
 
-        if(d.slots.length&&!empty){
-          ui.err='All player slots are full. Ask the Session Admin to increase the player count.';
-          render();return;
-        }
-
+        if(!empty){var nextNo=d.slots.reduce(function(n,sl){return Math.max(n,Number(sl.number)||0);},0)+1;empty={number:nextNo,playerId:null,joinedAt:null};d.slots.push(empty);d.totalPlayers=Math.max(Number(d.totalPlayers)||0,d.slots.length);}
         if(empty){
           var emptyNo=empty.number;
           empty.playerId=myPlayer.id;
@@ -1350,9 +1346,7 @@ async function joinSession(raw,role){
           d.totalPlayers=1;
         }
 
-        if(d.roster.indexOf(myPlayer.id)<0){
-          d.roster.push(myPlayer.id);
-        }
+        if(d.roster.indexOf(myPlayer.id)<0)d.roster.push(myPlayer.id);d.totalPlayers=Math.max(Number(d.totalPlayers)||0,d.slots.length);rescheduleSessionAfterRosterChange(d);
       }
     }
 
