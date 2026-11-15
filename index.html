@@ -909,7 +909,7 @@ function viewScore(){
   var gs=gameStatsFor(m.g[gi-1]);
   var gp=[0,1].map(function(T){return !over&&wouldWin(g,T,tg);});
   var h='<div class="row sp"><button class="btn sm" data-act="back">← '+(ui.sid?'Session':'Matches')+'</button><span class="small muted">'+(ms.done?'Match complete':'Game '+gi+' of '+m.bo)+'</span><button class="btn sm" data-act="swapsides">⇄ Swap Sides</button></div>';
-  h+=h+='<div class="board" style="margin-top:8px">'+(ui.flip?[1,0]:[0,1]).map(function(T){
+  h+='<div class="board" style="margin-top:8px">'+(ui.flip?[1,0]:[0,1]).map(function(T){
     var chips='';
     if(!over&&g.srv===T)chips+='<span class="chip srv">Serving</span>';
     if(gp[T])chips+='<span class="chip hi">'+(ms.w[T]+1>=ms.need?'Match point':'Game point')+'</span>';
