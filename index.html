@@ -560,9 +560,9 @@ function viewList(){
   var groups=sessionGroups(),now=Date.now();
   var cats=[{id:'current',name:'Current Session'},{id:'upcoming',name:'Upcoming Session'},{id:'past',name:'Past / History Session'}];
   var h='<h2>Sessions</h2><div class="stack">';
-  h+='<button class="btn primary block" data-act="new">＋ Create Session</button>' + '<div class="card stack"><b>Join a Session</b><form data-form="join" class="stack"><div class="field"><label for="joinid">Session ID or private link</label><input id="joinid" type="text" placeholder="Paste Session ID or link" value="'+esc(ui.joinId||'')+'"></div><div class="field"><label for="joinrole">Choose your role</label><div class="inl"><select id="joinrole"><option value="player"'+(ui.joinRole==='player'?' selected':'')+'>Player</option><option value="refereeRequest"'+(ui.joinRole==='refereeRequest'?' selected':'')+'>Referee (request approval)</option><option value="spectator"'+(ui.joinRole==='spectator'?' selected':'')+'>Spectator</option></select><button class="btn" type="submit">Join Session</button></div></div></form></div>';
-  if(ui.joinPrompt&&ui.joinId)h+='<div class="modal-backdrop"><div class="modal-card stack"><h2>Join Session</h2><p class="small muted">Choose your role to continue.</p><form data-form="join" class="stack"><input id="joinid" type="hidden" value="'+esc(ui.joinId)+'"><div class="field"><label for="joinrole">Your role</label><select id="joinrole"><option value="player">Player</option><option value="refereeRequest">Referee (request approval)</option><option value="spectator">Spectator</option></select></div><button class="btn primary block" type="submit">Continue</button><button class="btn block" type="button" data-act="canceljoin">Cancel</button></form></div></div>';
-  cats.forEach(function(c){
+  h+='<button class="btn primary block" data-act="new">＋ Create Session</button><button class="btn block" data-act="openjoin">＋ Join a Session</button>';
+   if(ui.joinPrompt){if(ui.joinStep==='role')h+='<div class="modal-backdrop"><div class="modal-card stack"><h2>Join a Session</h2><p class="small muted">Choose how you want to join this session.</p><div class="field"><label>Your Role</label><select id="joinrole"><option value="player"'+(ui.joinRole==='player'?' selected':'')+'>Player</option><option value="refereeRequest"'+(ui.joinRole==='refereeRequest'?' selected':'')+'>Referee (request approval)</option><option value="spectator"'+(ui.joinRole==='spectator'?' selected':'')+'>Spectator</option></select></div>'+(ui.joinError?'<p class="err-msg">'+esc(ui.joinError)+'</p>':'')+'<button class="btn primary block" data-act="confirmjoin">Join Session</button><button class="btn block" data-act="canceljoin">Cancel</button></div></div>';else h+='<div class="modal-backdrop"><div class="modal-card stack"><h2>Join a Session</h2><p class="small muted">Paste the session invite link below to continue.</p><div class="field"><label>Session Link or ID</label><input id="joinid" type="text" placeholder="Paste Session Link Here" value="'+esc(ui.joinId||'')+'"></div>'+(ui.joinError?'<p class="err-msg">'+esc(ui.joinError)+'</p>':'')+'<button class="btn primary block" data-act="joinnext">Continue</button><button class="btn block" data-act="canceljoin">Cancel</button></div></div>';}
+   cats.forEach(function(c){
     var list=groups.filter(function(g){return sessionCategory(g,now)===c.id;});
     h+='<details class="card"><summary>'+c.name+' <span class="chip">'+list.length+'</span></summary>'+
       (list.length?'<div class="stack" style="margin-top:12px">'+list.map(sessionCard).join('')+'</div>':'<p class="small muted" style="margin-top:10px">No sessions in this section.</p>')+'</details>';
@@ -1248,13 +1248,13 @@ async function joinSession(raw,role){
     if(mt)sid=decodeURIComponent(mt[1]);
     sid=sid.replace(/^.*\//,'');
     if(!sid){
-      ui.err='Enter a Session ID or invite link.';
+      ui.joinError='Enter a Session ID or invite link.';
       render();return;
     }
 
     var d=await cloud.api.get('sessions',sid);
     if(!d){
-      ui.err='Session not found. Check the ID or link.';
+      ui.joinError='Session not found. Check the ID or link.';
       render();return;
     }
 
@@ -1370,8 +1370,10 @@ async function joinSession(raw,role){
     case 'back':if(ui.tab==='stats')go('stats','stats');else if(ui.view==='match'||ui.view==='detail'){if(ui.sid){ui.view='session';ui.mid=null;render();window.scrollTo(0,0);}else go('matches','list');}else if(ui.view==='new'&&ui.sid){ui.view='session';render();window.scrollTo(0,0);}else go('matches','list');break;
     case 'start':startMatch();break;
     case 'createsessiononly':createSessionOnly();break;
-    case 'canceljoin':ui.joinPrompt=false;ui.joinId='';render();break;
-    case 'copyplayerid':{var cv=b.dataset.id||'';if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(cv).then(function(){ui.err='Player ID copied. Share it with others.';render();}).catch(function(){ui.err='Player ID: '+cv;render();});else{ui.err='Player ID: '+cv;render();}break;}
+    case 'openjoin':ui.joinId='';ui.joinRole='player';ui.joinStep='link';ui.joinError='';ui.joinPrompt=true;ui.err='';render();break;
+case 'joinnext':{var ji=document.getElementById('joinid');ui.joinId=ji?ji.value.trim():'';if(!ui.joinId){ui.joinError='Please paste a Session Link or ID.';}else{ui.joinStep='role';ui.joinError='';}render();break;}
+case 'confirmjoin':{var jr=document.getElementById('joinrole');ui.joinRole=jr?jr.value:'player';ui.joinError='';joinSession(ui.joinId,ui.joinRole);break;}
+     case 'copyplayerid':{var cv=b.dataset.id||'';if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(cv).then(function(){ui.err='Player ID copied. Share it with others.';render();}).catch(function(){ui.err='Player ID: '+cv;render();});else{ui.err='Player ID: '+cv;render();}break;}
     case 'addfoundplayer':{
       var fp=ui.playerSearchResult;
       if(!fp||!fp.id)break;
