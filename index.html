@@ -572,7 +572,7 @@ function viewList(){
 }
 function saveSessionDoc(d){d.u=Date.now();var at=S.sessions.findIndex(function(x){return x.id===d.id;});if(at>=0)S.sessions[at]=d;else S.sessions.push(d);cloud.api.set('sessions',d.id,clean(d)).catch(writeErr);}
 function sessionRoster(d){return d&&Array.isArray(d.roster)?d.roster.filter(Boolean):[];}
-function sessionSlotIds(d){var slots=Array.isArray(d&&d.slots)?d.slots:[];return slots.length?slots.map(function(sl){return sl&&sl.playerId?sl.playerId:'slot:'+(sl&&sl.number||0);}):sessionRoster(d);}
+function rescheduleSessionAfterRosterChange(d){var need=d.matchType==='s'?2:4;if(sessionRoster(d).length>=need){roundRobin(d);}else{d.rounds=(d.rounds||[]).map(function(rr){return {id:rr.id,name:rr.name,fixtures:(rr.fixtures||[]).filter(function(fx){return !!(fx.matchId||fx.startedAt);}),bye:rr.bye||[],createdAt:rr.createdAt||Date.now()};}).filter(function(rr){return rr.fixtures.length>0;});saveSessionDoc(d);ui.err='Player list updated. Add '+(need-sessionRoster(d).length)+' more player(s) to create new games.';render();}}
 function sessionPlayerName(id,d){if(String(id).indexOf('slot:')===0)return 'Player '+String(id).slice(5);return nameOf(id);}
 async function deleteSessionMatch(mid){
   var m=S.matches.find(function(x){return x&&x.id===mid;});
