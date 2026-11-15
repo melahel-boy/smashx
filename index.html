@@ -624,22 +624,9 @@ var ids=teams[0].concat(teams[1]).filter(function(x){return typeof x==='string'&
     ui.err='One or more players are already playing another active game.';
     render();return;
   }
-  var now=Date.now();
-  var sg=(fx.teams[0]||[]).length===1;
-  var m={
-    id:uid(),t:now,u:now,tg:21,bo:3,ty:sg?'s':'d',
-    tm:ids,by:meId(),pids:ids.slice(),sid:sid,
-    venue:d.venue||'',sessionDate:d.sessionDate||'',
-    sessionTime:d.sessionTime||'',sessionAt:d.sessionAt||now,
-    visibility:d.visibility||'public',
-    memberUids:d.memberUids||[],
-    playerUids:ids.map(function(pid){
-      var p=S.players.find(function(x){return x.id===pid;});
-      return p&&p.uid?p.uid:null;
-    }).filter(Boolean),
-    roundId:rid,fixtureId:fid,
-    g:[{f:0,pos:ids.slice(),r:[],sk:null}]
-  };
+  
+var sg=(fx.teams[0]||[]).length===1,playerChoices=ids.map(function(pid,i){return (i+1)+'. '+nameOf(pid);}).join('\n'),serverChoice=window.prompt('Select FIRST SERVER by number:\n'+playerChoices),serverIndex=parseInt(serverChoice,10)-1;if(serverChoice===null||!Number.isInteger(serverIndex)||serverIndex<0||serverIndex>=ids.length){ui.err='Game start cancelled. Select a valid first server.';render();return;}var serverId=ids[serverIndex],firstServerTeam=teams[0].indexOf(serverId)>=0?0:1,receiverIds=firstServerTeam===0?teams[1]:teams[0],receiverChoices=receiverIds.map(function(pid,i){return (i+1)+'. '+nameOf(pid);}).join('\n'),receiverChoice=window.prompt('Select FIRST RECEIVER by number:\n'+receiverChoices),receiverIndex=parseInt(receiverChoice,10)-1;if(receiverChoice===null||!Number.isInteger(receiverIndex)||receiverIndex<0||receiverIndex>=receiverIds.length){ui.err='Game start cancelled. Select a valid first receiver.';render();return;}var receiverId=receiverIds[receiverIndex],pos=ids.slice();if(!sg){var serverBase=firstServerTeam===0?0:2,receiverBase=firstServerTeam===0?2:0,serverPos=pos.indexOf(serverId),receiverPos=pos.indexOf(receiverId),tempServer=pos[serverBase];pos[serverBase]=serverId;pos[serverPos]=tempServer;var tempReceiver=pos[receiverBase];pos[receiverBase]=receiverId;pos[receiverPos]=tempReceiver;}var now=Date.now();var m={id:uid(),t:now,u:now,tg:21,bo:3,ty:sg?'s':'d',tm:ids,by:meId(),pids:ids.slice(),sid:sid,venue:d.venue||'',sessionDate:d.sessionDate||'',sessionTime:d.sessionTime||'',sessionAt:d.sessionAt||now,visibility:d.visibility||'public',memberUids:d.memberUids||[],playerUids:ids.map(function(pid){var p=S.players.find(function(x){return x.id===pid;});return p&&p.uid?p.uid:null;}).filter(Boolean),roundId:rid,fixtureId:fid,g:[{f:firstServerTeam,pos:pos,r:[],sk:null}]};
+
   try{
     await cloud.api.set('matches',m.id,clean(m));
     fx.matchId=m.id;fx.startedAt=now;
@@ -921,8 +908,10 @@ function viewScore(){
       SHOTS.map(function(x){return '<button class="sc-btn'+(ui.shot===x[0]?' on':'')+'" data-act="shot" data-s="'+x[0]+'">'+x[1]+'</button>';}).join('')+'</div></div>';
   }
   h+='<div class="stack">'+(ui.flip?[teamCard(m,ms,1,gs,over),teamCard(m,ms,0,gs,over)]:[teamCard(m,ms,0,gs,over),teamCard(m,ms,1,gs,over)]).join('')+'</div>';
-  if((m.g[gi-1].r||[]).length===0&&canManageSession(m.sid)){var opts='<option value="">Not appointed — Session Admin can score</option>',sd=sessionDoc(m.sid);sessionRoster(sd).forEach(function(pid){var pp=S.players.find(function(x){return x.id===pid;});if(pp&&pp.uid&&sd&&sd.members&&sd.members[pp.uid]==='player')opts+='<option value="'+esc(pp.uid)+'">'+esc(pp.name)+'</option>';});if(sd&&sd.refereeUid)opts+='<option value="'+esc(sd.refereeUid)+'">Referee</option>';h+='<div class="card stack"><b>Appoint Scorekeeper for Game '+gi+'</b><div class="inl"><select id="scorekeeperuid">'+opts+'</select><button class="btn primary" data-act="setsk" data-id="'+m.id+'">Confirm</button></div><p class="small muted">If no Scorekeeper is appointed, Session Admin can score this game.</p></div>';}else if(g.sk){h+='<p class="small muted">Scorekeeper: '+esc((S.players.find(function(x){return x.uid===g.sk;})||{}).name|| (sessionDoc(m.sid)&&sessionDoc(m.sid).refereeUid===g.sk?'Referee':'Appointed member'))+'</p>'; }
-  if(over&&!ms.done){
+  
+if((m.g[gi-1].r||[]).length===0&&canManageSession(m.sid)){var opts='<option value="">Not appointed — Session Admin can score</option>',sd=sessionDoc(m.sid);sessionRoster(sd).forEach(function(pid){var pp=S.players.find(function(x){return x&&x.id===pid;});if(pp&&pp.uid&&(!sd||pp.uid!==sd.refereeUid))opts+='<option value="'+esc(pp.uid)+'">'+esc(pp.name)+'</option>';});if(sd&&sd.refereeUid)opts+='<option value="'+esc(sd.refereeUid)+'">Referee</option>';h+='<div class="card stack"><b>Appoint Scorekeeper for Game '+gi+'</b><div class="inl"><select id="scorekeeperuid">'+opts+'</select><button class="btn primary" data-act="setsk" data-id="'+m.id+'">Confirm</button></div><p class="small muted">If no Scorekeeper is appointed, Session Admin can score this game.</p></div>';}else if(g.sk){h+='<p class="small muted">Scorekeeper: '+esc((S.players.find(function(x){return x.uid===g.sk;})||{}).name|| (sessionDoc(m.sid)&&sessionDoc(m.sid).refereeUid===g.sk?'Referee':'Appointed member'))+'</p>'; }
+   
+   if(over&&!ms.done){
     var nx=ui.next;
     if(!nx||nx.mid!==m.id||nx.n!==gi){var lg=m.g[gi-1];nx=ui.next={mid:m.id,n:gi,f:g.winner,pos:lg.pos.slice()};}
     h+='<div class="card stack" style="margin-top:8px;border-color:var(--accent)"><div><b>Game '+gi+' to '+esc(teamName(m,g.winner))+'</b> <span class="muted">'+g.s[0]+'–'+g.s[1]+'</span></div>'+
