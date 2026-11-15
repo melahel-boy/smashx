@@ -199,9 +199,9 @@ function gameState(g,tg){
     if(r.t===srv){if(!sg)P[r.t]=[P[r.t][1],P[r.t][0]];}else{srv=r.t;}
     if(isOver(s[0],s[1],tg)){over=true;winner=s[0]>s[1]?0:1;}
   }
-  var server=sg?P[srv][0]:P[srv][s[srv]%2===0?0:1];
-  return{s:s,srv:srv,server:server,P:P,over:over,winner:winner,n:n,sg:sg};
-}
+   var court=s[srv]%2===0?0:1,server=sg?P[srv][0]:P[srv][court],receiver=sg?P[1-srv][0]:P[1-srv][court];
+return{s:s,srv:srv,server:server,receiver:receiver,P:P,over:over,winner:winner,n:n,sg:sg};
+  }
 /* Players on one side. Old matches have no type and four players, so they stay doubles. */
 function teamIds(m,T){var ids=m&&Array.isArray(m.tm)?m.tm:[];if(!ids.length)return[];var per=Math.ceil(ids.length/2);return ids.slice(T*per,Math.min((T+1)*per,ids.length));}
 /* Permanent display ID, derived from the player's permanent record id so old players need no migration. */
@@ -866,7 +866,7 @@ function readForm(){
 function teamCard(m,ms,T,gs,over){
   var g=ms.cur,cls=T===0?'a':'b';
   var rows=teamIds(m,T).map(function(id){
-    var x=gs[id]||{w:0,e:0},isSrv=!over&&g.srv===T&&g.server===id,nm=esc(nameOf(id));
+var x=gs[id]||{w:0,e:0},isSrv=!over&&g.srv===T&&g.server===id,isRcv=!over&&g.srv!==T&&g.receiver===id,nm=esc(nameOf(id));
     return '<div class="prow"><div style="min-width:0"><div class="row" style="gap:6px;flex-wrap:nowrap"><span class="pname">'+nm+'</span>'+(isSrv?'<span class="chip srv">Serving</span>':'')+'</div>'+
       '<div class="pmeta"><span class="nw">'+courtOf(g,T,id)+'</span> · <span class="nw">'+x.w+' won · '+x.e+' err</span></div></div>'+
       '<button class="pbtn win" data-act="pt" data-p="'+id+'" aria-label="Point won by '+nm+'"'+(over||!canScore(m)?' disabled':'')+'>Point</button>'+
@@ -908,7 +908,7 @@ function viewScore(){
   h+='<div class="stack">'+(ui.flip?[teamCard(m,ms,1,gs,over),teamCard(m,ms,0,gs,over)]:[teamCard(m,ms,0,gs,over),teamCard(m,ms,1,gs,over)]).join('')+'</div>';
   
 if((m.g[gi-1].r||[]).length===0&&canManageSession(m.sid)){var opts='<option value="">Not appointed — Session Admin can score</option>',sd=sessionDoc(m.sid);sessionRoster(sd).forEach(function(pid){var pp=S.players.find(function(x){return x&&x.id===pid;});if(pp&&pp.uid&&(!sd||pp.uid!==sd.refereeUid))opts+='<option value="'+esc(pp.uid)+'">'+esc(pp.name)+'</option>';});if(sd&&sd.refereeUid)opts+='<option value="'+esc(sd.refereeUid)+'">Referee</option>';h+='<div class="card stack"><b>Appoint Scorekeeper for Game '+gi+'</b><div class="inl"><select id="scorekeeperuid">'+opts+'</select><button class="btn primary" data-act="setsk" data-id="'+m.id+'">Confirm</button></div><p class="small muted">If no Scorekeeper is appointed, Session Admin can score this game.</p></div>';}else if(g.sk){h+='<p class="small muted">Scorekeeper: '+esc((S.players.find(function(x){return x.uid===g.sk;})||{}).name|| (sessionDoc(m.sid)&&sessionDoc(m.sid).refereeUid===g.sk?'Referee':'Appointed member'))+'</p>'; }
-   if(!over&&g.n===0&&canManageSession(m.sid)){var cur=gameState(g,tg),svteam=teamIds(m,cur.srv),rvteam=teamIds(m,1-cur.srv);h+='<div class="card stack"><b>First Server / Receiver</b><div class="field"><label>Server</label><select id="firstserver">'+m.tm.map(function(pid){return '<option value="'+esc(pid)+'"'+(pid===cur.server?' selected':'')+'>'+esc(nameOf(pid))+'</option>';}).join('')+'</select></div><div class="field"><label>Receiver</label><select id="firstreceiver">'+rvteam.map(function(pid){return '<option value="'+esc(pid)+'">'+esc(nameOf(pid))+'</option>';}).join('')+'</select></div><button class="btn primary block" data-act="savefirstserve" data-id="'+m.id+'">Save Server / Receiver</button></div>';}
+ if(!over&&g.n===0&&canManageSession(m.sid)){var cur=gameState(g,tg),st=teamIds(m,teamIds(m,0).indexOf(cur.server)>=0?0:1),rt=teamIds(m,1-(teamIds(m,0).indexOf(cur.server)>=0?0:1));h+='<div class="card stack"><b>First Server / Receiver</b><div class="field"><label>Server</label><select id="firstserver">'+m.tm.map(function(pid){return '<option value="'+esc(pid)+'"'+(pid===cur.server?' selected':'')+'>'+esc(nameOf(pid))+'</option>';}).join('')+'</select></div><div class="field"><label>Receiver</label><select id="firstreceiver">'+rt.map(function(pid){return '<option value="'+esc(pid)+'"'+(pid===cur.receiver?' selected':'')+'>'+esc(nameOf(pid))+'</option>';}).join('')+'</select></div><button class="btn primary block" data-act="savefirstserve" data-id="'+m.id+'">Save Server / Receiver</button></div>';}else if(!over){h+='<div class="card"><b>Serving:</b> '+esc(nameOf(g.server))+' · <b>Receiving:</b> '+esc(nameOf(g.receiver))+'</div>';}  
    if(over&&!ms.done){
     var nx=ui.next;
     if(!nx||nx.mid!==m.id||nx.n!==gi){var lg=m.g[gi-1];nx=ui.next={mid:m.id,n:gi,f:g.winner,pos:lg.pos.slice()};}
