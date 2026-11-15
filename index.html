@@ -302,7 +302,7 @@ function mergeInto(S,dirty,rp,rm,markDirty){
 var DEFAULT_ADMIN_EMAIL="danijacob20@gmail.com";
 var S={players:[],matches:[],sessions:[]};
 var cloud={api:null,user:null,pending:false,fromCache:true,meTried:false,stops:[]};
-var ui={tab:'matches',view:'list',mid:null,pid:null,sid:null,shot:'',next:null,err:'',edit:null,confirm:null,form:{},auth:'loading',pq:'',cx:null,joinId:'',joinRole:'player',playerSearchId:'',playerSearchResult:null,playerSearchError:'',playerSearchBusy:false};
+var ui={tab:'matches',view:'list',mid:null,pid:null,sid:null,shot:'',next:null,flip:false,err:'',edit:null,confirm:null,form:{},auth:'loading',pq:'',cx:null,joinId:'',joinRole:'player',playerSearchId:'',playerSearchResult:null,playerSearchError:'',playerSearchBusy:false};
 function clean(o){return JSON.parse(JSON.stringify(o));}
    function normaliseSessionDoc(d){
   if(!d || !Array.isArray(d.rounds)) return d;
@@ -908,8 +908,8 @@ function viewScore(){
   var ms=matchState(m),g=ms.cur,tg=m.tg,gi=m.g.length,over=g.over;
   var gs=gameStatsFor(m.g[gi-1]);
   var gp=[0,1].map(function(T){return !over&&wouldWin(g,T,tg);});
-  var h='<div class="row sp"><button class="btn sm" data-act="back">← '+(ui.sid?'Session':'Matches')+'</button><span class="small muted">'+(ms.done?'Match complete':'Game '+gi+' of '+m.bo)+'</span></div>';
-  h+='<div class="board" style="margin-top:8px">'+[0,1].map(function(T){
+  var h='<div class="row sp"><button class="btn sm" data-act="back">← '+(ui.sid?'Session':'Matches')+'</button><span class="small muted">'+(ms.done?'Match complete':'Game '+gi+' of '+m.bo)+'</span><button class="btn sm" data-act="swapsides">⇄ Swap Sides</button></div>';
+  h+=h+='<div class="board" style="margin-top:8px">'+(ui.flip?[1,0]:[0,1]).map(function(T){
     var chips='';
     if(!over&&g.srv===T)chips+='<span class="chip srv">Serving</span>';
     if(gp[T])chips+='<span class="chip hi">'+(ms.w[T]+1>=ms.need?'Match point':'Game point')+'</span>';
