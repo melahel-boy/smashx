@@ -653,23 +653,108 @@ var ids=teams[0].concat(teams[1]).filter(function(x){return typeof x==='string'&
   }
 }
 function roundRobin(d){
-  var ids=sessionSlotIds(d),mode=d.matchType||'d',rounds=[],n=ids.length;
-  if(n<(mode==='s'?2:4)){ui.err='Add at least '+(mode==='s'?2:4)+' player slots to the session.';render();return;}
-  var ring=ids.slice();if(n%2)ring.push(null);
-  var count=ring.length-1,half=ring.length/2;
-  for(var r=0;r<count;r++){
-    var slots=[];for(var j=0;j<half;j++){var a=ring[j],b=ring[ring.length-1-j];if(a&&b)slots.push([a,b]);}
-    var fixtures=[];
-    if(mode==='s')slots.forEach(function(pair){fixtures.push({id:uid(),teams:[[pair[0]],[pair[1]]],names:['Team A','Team B']});});
-    else{
-      var pool=slots.reduce(function(z,x){return z.concat(x);},[]);
-      for(var k=0;k+3<pool.length;k+=4){fixtures.push({id:uid(),teams:[[pool[k],pool[k+1]],[pool[k+2],pool[k+3]]],names:['Team A','Team B']});}
-    }
-    var used={};fixtures.forEach(function(fx){fx.teams.forEach(function(team){team.forEach(function(pid){used[pid]=true;});});});
-    var bye=ids.filter(function(pid){return !used[pid];});rounds.push({id:uid(),name:'Round '+(r+1),fixtures:fixtures,bye:bye,createdAt:Date.now()});
-    ring=[ring[0]].concat([ring[ring.length-1]]).concat(ring.slice(1,ring.length-1));
+  var ids=sessionRoster(d).filter(function(x,i,a){
+    return x&&a.indexOf(x)===i;
+  });
+  var mode=d.matchType||'d';
+  var per=mode==='s'?2:4;
+  var min=Math.max(1,parseInt(d.minGamesPerPlayer,10)||1);
+  var equal=d.scheduleMode==='equal';
+  if(ids.length<per){
+    ui.err='Add at least '+per+' joined players to generate games.';
+    render();return;
   }
-  d.rounds=(d.rounds||[]).concat(rounds);saveSessionDoc(d);ui.err='Generated '+rounds.length+' rounds.';render();
+
+  var old=Array.isArray(d.rounds)?d.rounds:[];
+  var kept=[],counts={};
+  ids.forEach(function(pid){counts[pid]=0;});
+
+  old.forEach(function(rr){
+    var locked=[];
+    (rr.fixtures||[]).forEach(function(fx){
+      if(fx.matchId||fx.startedAt){
+        locked.push(fx);
+        (fx.teams||[]).forEach(function(team){
+          (team||[]).forEach(function(pid){
+            if(counts[pid]!==undefined)counts[pid]++;
+          });
+        });
+      }
+    });
+    if(locked.length){
+      kept.push({
+        id:rr.id,
+        name:rr.name,
+        fixtures:locked,
+        bye:rr.bye||[],
+        createdAt:rr.createdAt||Date.now()
+      });
+    }
+  });
+
+  var target=Math.max(min,Math.max.apply(null,ids.map(function(pid){
+    return counts[pid]||0;
+  })));
+
+  if(equal){
+    while(true){
+      var needed=ids.length*target-ids.reduce(function(sum,pid){
+        return sum+(counts[pid]||0);
+      },0);
+      if(needed>=0&&needed%per===0)break;
+      target++;
+      if(target>1000){
+        ui.err='Could not create an equal schedule with the completed games.';
+        render();return;
+      }
+    }
+  }
+
+  var remaining=ids.length*target-ids.reduce(function(sum,pid){
+    return sum+(counts[pid]||0);
+  },0);
+
+  if(remaining<0||remaining%per!==0){
+    ui.err='Existing games prevent an equal schedule. Completed games were kept unchanged.';
+    render();return;
+  }
+
+  var gameCount=remaining/per;
+  var fresh=[];
+  for(var g=0;g<gameCount;g++){
+    var pool=ids.slice().sort(function(a,b){
+      var diff=(counts[a]||0)-(counts[b]||0);
+      return diff||Math.random()-.5;
+    }).slice(0,per);
+
+    if(pool.length!==per)break;
+
+    for(var p=pool.length-1;p>0;p--){
+      var q=Math.floor(Math.random()*(p+1));
+      var tmp=pool[p];pool[p]=pool[q];pool[q]=tmp;
+    }
+
+    var half=per/2;
+    var fx={
+      id:uid(),
+      teams:[pool.slice(0,half),pool.slice(half)],
+      names:['Team A','Team B']
+    };
+    pool.forEach(function(pid){counts[pid]++;});
+
+    fresh.push({
+      id:uid(),
+      name:'Round '+(kept.length+fresh.length+1),
+      fixtures:[fx],
+      bye:ids.filter(function(pid){return pool.indexOf(pid)<0;}),
+      createdAt:Date.now()
+    });
+  }
+
+  d.rounds=kept.concat(fresh);
+  saveSessionDoc(d);
+  ui.err='Schedule updated. '+fresh.length+' new games created.';
+  render();
 }
 function roundHtml(d){
   var rounds=Array.isArray(d.rounds)?d.rounds:[],ids=sessionRoster(d),slots=Array.isArray(d.slots)?d.slots:[],out='';rounds.forEach(function(rr){(rr.fixtures||[]).forEach(function(ff){if(!ff.id)ff.id=uid();});});
