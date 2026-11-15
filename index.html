@@ -302,7 +302,7 @@ function mergeInto(S,dirty,rp,rm,markDirty){
 var DEFAULT_ADMIN_EMAIL="danijacob20@gmail.com";
 var S={players:[],matches:[],sessions:[]};
 var cloud={api:null,user:null,pending:false,fromCache:true,meTried:false,stops:[]};
-var ui={tab:'matches',view:'list',mid:null,pid:null,sid:null,shot:'',next:null,flip:false,fixtureSetup:null,err:'',edit:null,confirm:null,form:{},auth:'loading',pq:'',cx:null,joinId:'',joinRole:'player',playerSearchId:'',playerSearchResult:null,playerSearchError:'',playerSearchBusy:false};
+var ui={tab:'matches',view:'list',mid:null,pid:null,sid:null,shot:'',next:null,flip:false,fixtureSetup:null,serverEdit:null,err:'',edit:null,confirm:null,form:{},auth:'loading',pq:'',cx:null,joinId:'',joinRole:'player',playerSearchId:'',playerSearchResult:null,playerSearchError:'',playerSearchBusy:false};
 function clean(o){return JSON.parse(JSON.stringify(o));}
    function normaliseSessionDoc(d){
   if(!d || !Array.isArray(d.rounds)) return d;
