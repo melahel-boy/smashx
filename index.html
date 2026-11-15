@@ -167,6 +167,7 @@ summary{font-weight:700;cursor:pointer;min-height:26px}
 </div>
 <nav class="nav" aria-label="Main"><div>
   <button data-act="tab" data-v="matches" id="t-matches"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M12 5v14M3 12h18"/></svg>Sessions</button>
+   <button data-act="tab" data-v="mygames" id="t-mygames"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 9h8M8 13h5"/></svg>My Games</button>
   <button data-act="tab" data-v="players" id="t-players"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c0-3.5 2.7-6 6-6s6 2.5 6 6M16 14.5c2.7 0 5 2 5 5.5"/></svg>Players</button>
   <button data-act="tab" data-v="stats" id="t-stats"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 20V11M12 20V4M19 20V14"/></svg>Stats</button>
 </div></nav>
@@ -909,6 +910,56 @@ function viewMe(){
   var top='<div class="stack" style="margin-top:8px"><span class="small muted">Signed in as '+esc(cloud.user.name)+'. Includes every match under your account.</span>'+(me?'<div class="card row sp"><div><span class="small muted">Your Player Unique ID</span><div><b>'+esc(displayId(me))+'</b></div></div><button class="btn sm" data-act="copyplayerid" data-id="'+esc(displayId(me))+'">Share / Copy</button></div>':'')+'</div>';
   return playerPage(mine.length?sumStats(mine):null,'My stats',top);
 }
+   function viewMyGames(){
+  var ids=myPids();
+  var mine=liveMatches().filter(function(m){
+    return (m.tm||[]).some(function(pid){return ids.indexOf(pid)>=0;})||
+      (m.playerUids||[]).indexOf(meId())>=0;
+  });
+  var live=[],done=[],upcoming=[];
+  mine.forEach(function(m){
+    var s=matchState(m);
+    if(s.done||s.closed)done.push(m);
+    else live.push(m);
+  });
+  S.sessions.forEach(function(d){
+    if(!d)return;
+    (d.rounds||[]).forEach(function(rr){
+      (rr.fixtures||[]).forEach(function(fx,j){
+        if(fx.matchId)return;
+        var teams=Array.isArray(fx.teams)?fx.teams:[];
+        var all=teams.reduce(function(a,t){return a.concat(Array.isArray(t)?t:[]);},[]);
+        if(all.some(function(pid){return ids.indexOf(pid)>=0;})){
+          upcoming.push({
+            sid:d.id,
+            venue:d.venue||'Session',
+            round:rr.name||'Round',
+            game:j+1,
+            teams:teams
+          });
+        }
+      });
+    });
+  });
+  var h='<h2>My Games</h2><div class="stack">';
+  h+='<h3>Live Games <span class="chip srv">'+live.length+'</span></h3>';
+  h+=live.length?live.map(matchCard).join(''):
+    '<p class="small muted">No live games right now.</p>';
+  h+='<h3>Upcoming Games <span class="chip">'+upcoming.length+'</span></h3>';
+  h+=upcoming.length?upcoming.map(function(x){
+    return '<button class="mcard" data-act="opensession" data-id="'+esc(x.sid)+'">'+
+      '<div class="row sp small muted"><span>'+esc(x.venue)+'</span><span class="chip">Upcoming</span></div>'+
+      '<div class="small muted">'+esc(x.round)+' · Game '+x.game+'</div>'+
+      '<div class="tn"><span>'+esc((x.teams[0]||[]).map(function(pid){return sessionPlayerName(pid,sessionDoc(x.sid)||{});}).join(' & '))+'</span></div>'+
+      '<div class="tn"><span>vs '+esc((x.teams[1]||[]).map(function(pid){return sessionPlayerName(pid,sessionDoc(x.sid)||{});}).join(' & '))+'</span></div>'+
+      '<div class="small muted">Open Session</div></button>';
+  }).join(''):
+    '<p class="small muted">No upcoming games found.</p>';
+  h+='<h3>Completed Games <span class="chip">'+done.length+'</span></h3>';
+  h+=done.length?done.map(matchCard).join(''):
+    '<p class="small muted">No completed games yet.</p>';
+  return h+'</div>';
+   }
 function fixBtn(){return '<div style="margin-top:8px"><button class="btn sm" data-act="hardreload">Refresh app</button></div>';}
 function hardReload(){
   var go=function(){location.reload();};
@@ -963,14 +1014,14 @@ function render(){
   var nav=document.querySelector('.nav');
   if(ui.auth!=='in'){nav.hidden=true;v.innerHTML=viewAuth();updSync();return;}
   nav.hidden=false;
-  var activeSid=ui.sid,activeRole=activeSid?myRole(activeSid):'';['players','stats'].forEach(function(t){var nb=document.getElementById('t-'+t);if(nb)nb.hidden=activeRole==='spectator';});
+  var activeSid=ui.sid,activeRole=activeSid?myRole(activeSid):'';['players','stats','mygames'].forEach(function(t){var nb=document.getElementById('t-'+t);if(nb)nb.hidden=activeRole==='spectator';});
   var h;
   if(ui.tab==='matches'){
     h=ui.view==='new'?viewNew():ui.view==='match'?viewScore():ui.view==='detail'?viewDetail():ui.view==='session'?viewSession():viewList();
-  }else if(ui.tab==='players'){h=viewPlayers();}
+  }else if(ui.tab==='players'){h=viewPlayers();}else if(ui.tab==='mygames'){h=viewMyGames();}
   else{h=ui.view==='player'?viewPlayer():viewStats();}
   v.innerHTML=h;
-  ['matches','me','players','stats'].forEach(function(t){var b=document.getElementById('t-'+t);if(b){b.classList.toggle('on',ui.tab===t);b.setAttribute('aria-current',ui.tab===t?'page':'false');}});
+  ['matches','players','mygames','stats'].forEach(function(t){var b=document.getElementById('t-'+t);if(b){b.classList.toggle('on',ui.tab===t);b.setAttribute('aria-current',ui.tab===t?'page':'false');}});
   updSync();
 }
 function go(tab,view){ui.tab=tab;ui.view=view||(tab==='matches'?'list':tab==='stats'?'stats':'');if(tab==='matches'&&ui.view==='list'){ui.sid=null;ui.mid=null;}ui.err='';ui.confirm=null;ui.edit=null;ui.cx=null;render();window.scrollTo(0,0);}
