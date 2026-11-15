@@ -167,7 +167,6 @@ summary{font-weight:700;cursor:pointer;min-height:26px}
 </div>
 <nav class="nav" aria-label="Main"><div>
   <button data-act="tab" data-v="matches" id="t-matches"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M12 5v14M3 12h18"/></svg>Sessions</button>
-  <button data-act="tab" data-v="me" id="t-me"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c.6-4 3.6-6.2 7.5-6.2s6.9 2.2 7.5 6.2"/></svg>Me</button>
   <button data-act="tab" data-v="players" id="t-players"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c0-3.5 2.7-6 6-6s6 2.5 6 6M16 14.5c2.7 0 5 2 5 5.5"/></svg>Players</button>
   <button data-act="tab" data-v="stats" id="t-stats"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 20V11M12 20V4M19 20V14"/></svg>Stats</button>
 </div></nav>
@@ -865,7 +864,8 @@ function viewPlayers(){
     (ui.playerSearchError?'<p class="err-msg">'+esc(ui.playerSearchError)+'</p>':'')+
     (res?'<div class="row sp"><b>'+esc(res.name)+'</b>'+(inList?'<span class="chip">In your list</span>':'<button class="btn sm primary" type="button" data-act="addfoundplayer">Add</button>')+'</div>':'')+'</div>';
   h+='<div class="stack" id="plist">'+playerListHtml()+'</div>';
-  if(hasExamples())h+='<button class="btn sm" data-act="rmsample">Remove sample data</button>';
+  h+=viewMe();
+   if(hasExamples())h+='<button class="btn sm" data-act="rmsample">Remove sample data</button>';
   h+='<div class="card row sp" style="flex-wrap:nowrap"><p class="small muted" style="min-width:0">Signed in as <b>'+esc(cloud.user?cloud.user.name:'')+'</b>. Everything is backed up to your account and shared with the group.</p><button class="btn" data-act="signout">Sign out</button></div>';
   h+='<p class="small muted">Tip: add a friend who has not signed up as a Guest. When they sign in, they tap "This is me" on their name and all their past stats join their account.</p>';
   return h+'</div>';
@@ -963,11 +963,11 @@ function render(){
   var nav=document.querySelector('.nav');
   if(ui.auth!=='in'){nav.hidden=true;v.innerHTML=viewAuth();updSync();return;}
   nav.hidden=false;
-  var activeSid=ui.sid,activeRole=activeSid?myRole(activeSid):'';['me','players','stats'].forEach(function(t){var nb=document.getElementById('t-'+t);if(nb)nb.hidden=activeRole==='spectator';});
+  var activeSid=ui.sid,activeRole=activeSid?myRole(activeSid):'';['players','stats'].forEach(function(t){var nb=document.getElementById('t-'+t);if(nb)nb.hidden=activeRole==='spectator';});
   var h;
   if(ui.tab==='matches'){
     h=ui.view==='new'?viewNew():ui.view==='match'?viewScore():ui.view==='detail'?viewDetail():ui.view==='session'?viewSession():viewList();
-  }else if(ui.tab==='me'){h=viewMe();}else if(ui.tab==='players'){h=viewPlayers();}
+  }else if(ui.tab==='players'){h=viewPlayers();}
   else{h=ui.view==='player'?viewPlayer():viewStats();}
   v.innerHTML=h;
   ['matches','me','players','stats'].forEach(function(t){var b=document.getElementById('t-'+t);if(b){b.classList.toggle('on',ui.tab===t);b.setAttribute('aria-current',ui.tab===t?'page':'false');}});
@@ -1066,7 +1066,7 @@ document.addEventListener('click',function(e){
     case 'hardreload':hardReload();break;
     case 'signin':ui.err='';render();cloud.api.signIn().catch(function(e){ui.err=authMsg(e);render();});break;
     case 'signout':cloud.api.signOut().catch(function(){});break;
-    case 'claim':cloud.api.update('players',id,{uid:meId()}).then(function(){go('me');}).catch(function(e){ui.err='Could not link this name. Someone may have claimed it already.';render();});break;
+    case 'claim':cloud.api.update('players',id,{uid:meId()}).then(function(){go('players');}).catch(function(e){ui.err='Could not link this name. Someone may have claimed it already.';render();});break;
     case 'new':ui.err='';ui.sid=null;ui.form={};ui.view='new';render();window.scrollTo(0,0);break;
     case 'back':if(ui.tab==='stats')go('stats','stats');else if(ui.view==='match'||ui.view==='detail'){if(ui.sid){ui.view='session';ui.mid=null;render();window.scrollTo(0,0);}else go('matches','list');}else if(ui.view==='new'&&ui.sid){ui.view='session';render();window.scrollTo(0,0);}else go('matches','list');break;
     case 'start':startMatch();break;
