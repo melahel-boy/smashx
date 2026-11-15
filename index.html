@@ -660,6 +660,7 @@ function roundRobin(d){
   var per=mode==='s'?2:4;
   var min=Math.max(1,parseInt(d.minGamesPerPlayer,10)||1);
   var equal=d.scheduleMode==='equal';
+
   if(ids.length<per){
     ui.err='Add at least '+per+' joined players to generate games.';
     render();return;
@@ -692,60 +693,88 @@ function roundRobin(d){
     }
   });
 
-  var target=Math.max(min,Math.max.apply(null,ids.map(function(pid){
-    return counts[pid]||0;
-  })));
-
-  if(equal){
-    while(true){
-      var needed=ids.length*target-ids.reduce(function(sum,pid){
-        return sum+(counts[pid]||0);
-      },0);
-      if(needed>=0&&needed%per===0)break;
-      target++;
-      if(target>1000){
-        ui.err='Could not create an equal schedule with the completed games.';
-        render();return;
-      }
-    }
-  }
-
-  var remaining=ids.length*target-ids.reduce(function(sum,pid){
-    return sum+(counts[pid]||0);
+  var currentTotal=ids.reduce(function(s,p){
+    return s+counts[p];
   },0);
 
-  if(remaining<0||remaining%per!==0){
-    ui.err='Existing games prevent an equal schedule. Completed games were kept unchanged.';
+  var base=Math.max(min,Math.max.apply(null,ids.map(function(p){
+    return counts[p];
+  })));
+
+  var targets={},deficits=[],total=0,games=0;
+
+  for(var attempt=0;attempt<1000;attempt++){
+    targets={};
+
+    if(equal){
+      ids.forEach(function(pid){targets[pid]=base;});
+    }else{
+      ids.forEach(function(pid){targets[pid]=base;});
+
+      var extra=(per-(ids.length*base)%per)%per;
+      var order=ids.slice().sort(function(a,b){
+        return counts[b]-counts[a]||Math.random()-.5;
+      });
+
+      for(var ex=0;ex<extra;ex++){
+        targets[order[ex]]++;
+      }
+    }
+
+    deficits=ids.map(function(pid){
+      return Math.max(0,targets[pid]-counts[pid]);
+    });
+
+    total=deficits.reduce(function(s,n){return s+n;},0);
+    games=total/per;
+
+    if(total%per===0&&deficits.every(function(n){return n<=games;})){
+      break;
+    }
+    base++;
+  }
+
+  if(total%per!==0||!deficits.every(function(n){return n<=games;})){
+    ui.err='Could not create a balanced schedule. Existing games were kept unchanged.';
     render();return;
   }
 
-  var gameCount=remaining/per;
   var fresh=[];
-  for(var g=0;g<gameCount;g++){
-    var pool=ids.slice().sort(function(a,b){
-      var diff=(counts[a]||0)-(counts[b]||0);
-      return diff||Math.random()-.5;
-    }).slice(0,per);
 
-    if(pool.length!==per)break;
+  while(deficits.some(function(n){return n>0;})){
+    var order=ids.map(function(pid,i){
+      return {pid:pid,index:i,left:deficits[i],sort:Math.random()};
+    }).filter(function(x){return x.left>0;});
 
-    for(var p=pool.length-1;p>0;p--){
-      var q=Math.floor(Math.random()*(p+1));
-      var tmp=pool[p];pool[p]=pool[q];pool[q]=tmp;
+    order.sort(function(a,b){
+      return b.left-a.left||a.sort-b.sort;
+    });
+
+    if(order.length<per){
+      ui.err='Schedule could not be completed. Existing games were kept unchanged.';
+      render();return;
+    }
+
+    var pool=order.slice(0,per).map(function(x){return x.pid;});
+    pool.forEach(function(pid){
+      var ix=ids.indexOf(pid);
+      deficits[ix]--;
+    });
+
+    for(var sh=pool.length-1;sh>0;sh--){
+      var sj=Math.floor(Math.random()*(sh+1));
+      var temp=pool[sh];pool[sh]=pool[sj];pool[sj]=temp;
     }
 
     var half=per/2;
-    var fx={
-      id:uid(),
-      teams:[pool.slice(0,half),pool.slice(half)],
-      names:['Team A','Team B']
-    };
-    pool.forEach(function(pid){counts[pid]++;});
-
     fresh.push({
       id:uid(),
       name:'Round '+(kept.length+fresh.length+1),
-      fixtures:[fx],
+      fixtures:[{
+        id:uid(),
+        teams:[pool.slice(0,half),pool.slice(half)],
+        names:['Team A','Team B']
+      }],
       bye:ids.filter(function(pid){return pool.indexOf(pid)<0;}),
       createdAt:Date.now()
     });
