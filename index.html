@@ -568,6 +568,56 @@ function saveSessionDoc(d){d.u=Date.now();var at=S.sessions.findIndex(function(x
 function sessionRoster(d){return d&&Array.isArray(d.roster)?d.roster.filter(Boolean):[];}
 function sessionSlotIds(d){var slots=Array.isArray(d&&d.slots)?d.slots:[];return slots.length?slots.map(function(sl){return sl&&sl.playerId?sl.playerId:'slot:'+(sl&&sl.number||0);}):sessionRoster(d);}
 function sessionPlayerName(id,d){if(String(id).indexOf('slot:')===0)return 'Player '+String(id).slice(5);return nameOf(id);}
+async function startSessionFixture(sid,rid,fid){
+  var d=sessionDoc(sid);
+  if(!d||!canManageSession(sid))return;
+  var rr=(d.rounds||[]).find(function(x){return x.id===rid;});
+  var fx=rr&&(rr.fixtures||[]).find(function(x){return x.id===fid;});
+  if(!fx)return;
+  if(fx.matchId){
+    ui.mid=fx.matchId;ui.sid=sid;ui.view='match';render();return;
+  }
+  var ids=(fx.teams||[[],[]]).reduce(function(a,t){return a.concat(t||[]);},[]);
+  if(ids.length<2||new Set(ids).size!==ids.length){
+    ui.err='Invalid fixture. Check the players.';render();return;
+  }
+  var busy=S.matches.find(function(m){
+    if(!m||m.sid!==sid||m.st)return false;
+    var state=matchState(m);
+    return !state.done&&ids.some(function(pid){return (m.tm||[]).indexOf(pid)>=0;});
+  });
+  if(busy){
+    ui.err='One or more players are already playing another active game.';
+    render();return;
+  }
+  var now=Date.now();
+  var sg=(fx.teams[0]||[]).length===1;
+  var m={
+    id:uid(),t:now,u:now,tg:21,bo:3,ty:sg?'s':'d',
+    tm:ids,by:meId(),pids:ids.slice(),sid:sid,
+    venue:d.venue||'',sessionDate:d.sessionDate||'',
+    sessionTime:d.sessionTime||'',sessionAt:d.sessionAt||now,
+    visibility:d.visibility||'public',
+    memberUids:d.memberUids||[],
+    playerUids:ids.map(function(pid){
+      var p=S.players.find(function(x){return x.id===pid;});
+      return p&&p.uid?p.uid:null;
+    }).filter(Boolean),
+    roundId:rid,fixtureId:fid,
+    g:[{f:0,pos:ids.slice(),r:[],sk:null}]
+  };
+  try{
+    await cloud.api.set('matches',m.id,clean(m));
+    fx.matchId=m.id;fx.startedAt=now;
+    await cloud.api.set('sessions',sid,clean(d));
+    S.matches.push(m);
+    ui.mid=m.id;ui.sid=sid;ui.view='match';ui.err='';
+    render();window.scrollTo(0,0);
+  }catch(e){
+    ui.err='Could not start this game. Check connection and Firebase Rules.';
+    render();
+  }
+}
 function roundRobin(d){
   var ids=sessionSlotIds(d),mode=d.matchType||'d',rounds=[],n=ids.length;
   if(n<(mode==='s'?2:4)){ui.err='Add at least '+(mode==='s'?2:4)+' player slots to the session.';render();return;}
@@ -595,8 +645,18 @@ function roundHtml(d){
   out+='<button class="btn primary block" data-act="generaterounds" data-id="'+esc(d.id)+'">Generate rounds</button></div>';
   rounds.forEach(function(r,i){out+='<div class="card stack"><div class="row sp"><b>'+esc(r.name||('Round '+(i+1)))+'</b></div>';
     if(r.bye&&(Array.isArray(r.bye)?r.bye.length:true))out+='<p class="small muted">Bye / Rest: '+esc((Array.isArray(r.bye)?r.bye:[r.bye]).map(function(x){return sessionPlayerName(x,d);}).join(', '))+'</p>';
-    (r.fixtures||[]).forEach(function(f,j){out+='<div class="card stack"><div class="row sp"><div class="small"><b>Game '+(j+1)+'</b><br>'+esc((f.teams[0]||[]).map(function(x){return sessionPlayerName(x,d);}).join(' & '))+' <b>vs</b> '+esc((f.teams[1]||[]).map(function(x){return sessionPlayerName(x,d);}).join(' & '))+'</div><div class="row"><button class="btn sm" data-act="shufflegame" data-id="'+esc(d.id)+'" data-rid="'+esc(r.id)+'" data-fid="'+esc(f.id||'')+'" title="Shuffle">⇄</button><button class="btn sm" data-act="editgame" data-id="'+esc(d.id)+'" data-rid="'+esc(r.id)+'" data-fid="'+esc(f.id||'')+'">Edit</button><button class="btn sm danger" data-act="deletegame" data-id="'+esc(d.id)+'" data-rid="'+esc(r.id)+'" data-fid="'+esc(f.id||'')+'">Delete</button></div></div></div>';});
-    out+='</div>';});
+    (r.fixtures||[]).forEach(function(f,j){
+  var started=f.matchId&&S.matches.some(function(m){return m.id===f.matchId;});
+  out+='<div class="card stack"><div class="row sp"><div class="small"><b>Game '+(j+1)+'</b><br>'+
+  esc((f.teams[0]||[]).map(function(x){return sessionPlayerName(x,d);}).join(' & '))+
+  ' <b>vs</b> '+esc((f.teams[1]||[]).map(function(x){return sessionPlayerName(x,d);}).join(' & '))+
+  '</div><div class="row"><button class="btn sm" data-act="shufflegame" data-id="'+esc(d.id)+'" data-rid="'+esc(r.id)+'" data-fid="'+esc(f.id||'')+'">⇄</button>'+
+  '<button class="btn sm" data-act="editgame" data-id="'+esc(d.id)+'" data-rid="'+esc(r.id)+'" data-fid="'+esc(f.id||'')+'">Edit</button>'+
+  '<button class="btn sm danger" data-act="deletegame" data-id="'+esc(d.id)+'" data-rid="'+esc(r.id)+'" data-fid="'+esc(f.id||'')+'">Delete</button></div></div>'+
+  (started?'<button class="btn block" data-act="open" data-id="'+esc(f.matchId)+'">Open Game</button>':'<button class="btn primary block" data-act="startfixture" data-id="'+esc(d.id)+'" data-rid="'+esc(r.id)+'" data-fid="'+esc(f.id||'')+'">Start Game</button>')+
+  '</div>';
+});                               
+out+='</div>';});
   return out;
 }
 function viewSession(){
@@ -1038,6 +1098,10 @@ document.addEventListener('click',function(e){
     case 'updateslots':{var ud=sessionDoc(id),uiEl=document.getElementById('sessionTotalPlayers');if(ud&&canManageSession(id)&&uiEl){var wanted=Math.max(ud.matchType==='s'?2:4,Math.min(100,parseInt(uiEl.value,10)||0)),arr=Array.isArray(ud.slots)?ud.slots:[],filled=arr.filter(function(sl){return sl&&sl.playerId;}).length;if(wanted<filled){ui.err='Total slots cannot be less than the number of players already joined.';render();break;}if(wanted>arr.length){for(var si=arr.length;si<wanted;si++)arr.push({number:si+1,playerId:null,joinedAt:null});}else if(wanted<arr.length)arr=arr.slice(0,wanted);var grew=wanted>ud.totalPlayers;ud.slots=arr;ud.totalPlayers=wanted;saveSessionDoc(ud);if(grew)roundRobin(ud);ui.err='Player slots updated.';render();}break;}
     case 'generaterounds':{var gd=sessionDoc(id);if(gd&&canManageSession(id))roundRobin(gd);break;}
     case 'addrround':{var ad=sessionDoc(id);if(ad&&canManageSession(id)){ad.rounds=ad.rounds||[];ad.rounds.push({id:uid(),name:'Round '+(ad.rounds.length+1),fixtures:[],bye:[]});saveSessionDoc(ad);render();}break;}
+        case 'startfixture':{
+  startSessionFixture(id,b.dataset.rid,b.dataset.fid);
+  break;
+        }
     case 'shufflegame':{var sgdoc=sessionDoc(id),sgr=(sgdoc&&sgdoc.rounds||[]).find(function(x){return x.id===b.dataset.rid;}),sgf=sgr&&(sgr.fixtures||[]).find(function(x){return x.id===b.dataset.fid;});if(sgf&&canManageSession(id)){var pool=(sgf.teams[0]||[]).concat(sgf.teams[1]||[]);for(var qi=pool.length-1;qi>0;qi--){var qj=Math.floor(Math.random()*(qi+1)),qt=pool[qi];pool[qi]=pool[qj];pool[qj]=qt;}var qhalf=pool.length/2;sgf.teams=[pool.slice(0,qhalf),pool.slice(qhalf)];saveSessionDoc(sgdoc);render();}break;}
     case 'editgame':{var egdoc=sessionDoc(id),egr=(egdoc&&egdoc.rounds||[]).find(function(x){return x.id===b.dataset.rid;}),egf=egr&&(egr.fixtures||[]).find(function(x){return x.id===b.dataset.fid;});if(egf&&canManageSession(id)){var allids=sessionSlotIds(egdoc),av=window.prompt('Team A players (slot numbers or registered player names, comma separated)',(egf.teams[0]||[]).map(function(x){return sessionPlayerName(x,egdoc);}).join(', '));if(av!==null){var bv=window.prompt('Team B players (slot numbers or registered player names, comma separated)',(egf.teams[1]||[]).map(function(x){return sessionPlayerName(x,egdoc);}).join(', '));if(bv!==null){function parseFixtureTeam(v){return v.split(',').map(function(x){return x.trim();}).filter(Boolean).map(function(x){var sm=x.match(/^player\s*(\d+)$/i);if(sm)return 'slot:'+parseInt(sm[1],10);var pp=players().find(function(q){return q.name.toLowerCase()===x.toLowerCase();});return pp?pp.id:null;}).filter(Boolean);}var aa=parseFixtureTeam(av),bb=parseFixtureTeam(bv);if(aa.length&&bb.length&&!aa.some(function(x){return bb.indexOf(x)>=0;})){egf.teams=[aa,bb];saveSessionDoc(egdoc);render();}else{ui.err='Choose valid, different players for both teams.';render();}}}}break;}
     case 'deletegame':{var dgdoc=sessionDoc(id),dgr=(dgdoc&&dgdoc.rounds||[]).find(function(x){return x.id===b.dataset.rid;});if(dgr&&canManageSession(id)){dgr.fixtures=(dgr.fixtures||[]).filter(function(x){return x.id!==b.dataset.fid;});saveSessionDoc(dgdoc);render();}break;}
