@@ -692,7 +692,7 @@ if(old.length&&!forceRebuild){var nextCounts={};ids.forEach(function(pid){nextCo
   old.forEach(function(rr){
     var lockedFixtures=(rr.fixtures||[]).filter(function(fx){
       var linked=fx.matchId&&S.matches.find(function(m){return m&&m.id===fx.matchId;});
-      return !!(fx.matchId||fx.startedAt||(linked&&matchState(linked).done));
+      return !!(fx.startedAt||linked);
     });
     if(lockedFixtures.length){
       kept.push(Object.assign({},rr,{fixtures:lockedFixtures}));
