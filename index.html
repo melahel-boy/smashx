@@ -302,7 +302,7 @@ function mergeInto(S,dirty,rp,rm,markDirty){
 var DEFAULT_ADMIN_EMAIL="danijacob20@gmail.com";
 var S={players:[],matches:[],sessions:[]};
 var cloud={api:null,user:null,pending:false,fromCache:true,meTried:false,stops:[]};
-var ui={tab:'matches',view:'list',mid:null,pid:null,sid:null,shot:'',next:null,flip:false,fixtureSetup:null,serverEdit:null,err:'',edit:null,confirm:null,form:{},auth:'loading',pq:'',cx:null,joinId:'',joinRole:'player',playerSearchId:'',playerSearchResult:null,playerSearchError:'',playerSearchBusy:false};
+var ui={tab:'matches',view:'list',mid:null,pid:null,sid:null,shot:'',next:null,flip:false,fixtureSetup:null,editFixture:null,serverEdit:null,err:'',edit:null,confirm:null,form:{},auth:'loading',pq:'',cx:null,joinId:'',joinRole:'player',playerSearchId:'',playerSearchResult:null,playerSearchError:'',playerSearchBusy:false};  
 function clean(o){return JSON.parse(JSON.stringify(o));}
    function normaliseSessionDoc(d){
   if(!d || !Array.isArray(d.rounds)) return d;
@@ -790,7 +790,19 @@ function roundHtml(d){
   '</div>';
 });                               
 out+='</div>';});
-  return out;
+
+  if(ui.editFixture&&ui.editFixture.sid===d.id){
+    var es=ui.editFixture,er=rounds.find(function(x){return x.id===es.rid;}),ef=er&&(er.fixtures||[]).find(function(x){return x.id===es.fid;});
+    if(ef){
+      var ec=Math.max(1,Math.min(2,Math.max((ef.teams[0]||[]).length,(ef.teams[1]||[]).length)));
+      function editPlayerSelect(team,pos){
+        var cur=(ef.teams[team]||[])[pos]||'';
+        return '<div class="field"><label>Player '+(pos+1)+'</label><select id="edit-'+(team===0?'a':'b')+'-'+pos+'"><option value="">Choose player</option>'+ids.map(function(pid){return '<option value="'+esc(pid)+'"'+(cur===pid?' selected':'')+'>'+esc(sessionPlayerName(pid,d))+'</option>';}).join('')+'</select></div>';
+      }
+      out+='<div class="card stack"><h3>Edit game players</h3><div class="grid2"><div class="card stack"><b style="color:var(--ta)">Team A</b>'+Array.from({length:ec},function(_,i){return editPlayerSelect(0,i);}).join('')+'</div><div class="card stack"><b style="color:var(--tb)">Team B</b>'+Array.from({length:ec},function(_,i){return editPlayerSelect(1,i);}).join('')+'</div></div><div class="grid2"><button class="btn" data-act="editgamecancel">Cancel</button><button class="btn primary" data-act="saveeditgame" data-id="'+esc(d.id)+'" data-rid="'+esc(es.rid)+'" data-fid="'+esc(es.fid)+'">Save Changes</button></div></div>';
+    }
+  }
+   return out;
 }
 function viewSession(){
   var g=sessionGroups().find(function(x){return x.sid===ui.sid||x.key===ui.sid;});
@@ -1411,8 +1423,20 @@ case 'exitsession':{(async function(){try{var ed=await cloud.api.get('sessions',
     case 'addrround':{var ad=sessionDoc(id);if(ad&&canManageSession(id)){ad.rounds=ad.rounds||[];ad.rounds.push({id:uid(),name:'Round '+(ad.rounds.length+1),fixtures:[],bye:[]});saveSessionDoc(ad);render();}break;}
    case 'startfixture':{showFixtureSetup(id,b.dataset.rid,b.dataset.fid);break;}
 case 'fixturecancel':ui.fixtureSetup=null;render();break;
-    case 'shufflegame':{var sgdoc=sessionDoc(id),sgr=(sgdoc&&sgdoc.rounds||[]).find(function(x){return x.id===b.dataset.rid;}),sgf=sgr&&(sgr.fixtures||[]).find(function(x){return x.id===b.dataset.fid;});if(sgf&&canManageSession(id)){var pool=(sgf.teams[0]||[]).concat(sgf.teams[1]||[]);for(var qi=pool.length-1;qi>0;qi--){var qj=Math.floor(Math.random()*(qi+1)),qt=pool[qi];pool[qi]=pool[qj];pool[qj]=qt;}var qhalf=pool.length/2;sgf.teams=[pool.slice(0,qhalf),pool.slice(qhalf)];saveSessionDoc(sgdoc);render();}break;}
-    case 'editgame':{var egdoc=sessionDoc(id),egr=(egdoc&&egdoc.rounds||[]).find(function(x){return x.id===b.dataset.rid;}),egf=egr&&(egr.fixtures||[]).find(function(x){return x.id===b.dataset.fid;});if(egf&&canManageSession(id)){var av=window.prompt('Team A players (slot numbers or registered player names, comma separated)',(egf.teams[0]||[]).map(function(x){return sessionPlayerName(x,egdoc);}).join(', '));if(av!==null){var bv=window.prompt('Team B players (slot numbers or registered player names, comma separated)',(egf.teams[1]||[]).map(function(x){return sessionPlayerName(x,egdoc);}).join(', '));if(bv!==null){function parseFixtureTeam(v){return v.split(',').map(function(x){return x.trim();}).filter(Boolean).map(function(x){var sm=x.match(/^player\s*(\d+)$/i);if(sm)return 'slot:'+parseInt(sm[1],10);var pp=players().find(function(q){return q.name.toLowerCase()===x.toLowerCase();});return pp?pp.id:null;}).filter(Boolean);}var aa=parseFixtureTeam(av),bb=parseFixtureTeam(bv);if(aa.length&&bb.length&&!aa.some(function(x){return bb.indexOf(x)>=0;})){egf.teams=[aa,bb];saveSessionDoc(egdoc);render();}else{ui.err='Choose valid, different players for both teams.';render();}}}}break;}
+    case 'shufflegame':{var sgdoc=sessionDoc(id),sgr=(sgdoc&&sgdoc.rounds||[]).find(function(x){return x.id===b.dataset.rid;}),sgf=sgr&&(sgr.fixtures||[]).find(function(x){return x.id===b.dataset.fid;});if(sgf&&canManageSession(id)){var pool=(sgf.teams[0]||[]).concat(sgf.teams[1]||[]);for(var qi=pool.length-1;qi>0;qi--){var qj=Math.floor(Math.random()*(qi+1)),qt=pool[qi];pool[qi]=pool[qj];pool[qj]=qt;}var qhalf=pool.length/2;sgf.teams=[pool.slice(0,qhalf),pool.slice(qhalf)];saveSessionDoc(sgdoc);render();}break;}   
+case 'editgame':{ui.editFixture={sid:id,rid:b.dataset.rid,fid:b.dataset.fid};ui.err='';render();break;}
+case 'editgamecancel':ui.editFixture=null;render();break;
+case 'saveeditgame':{
+  var xdoc=sessionDoc(id),xr=(xdoc&&xdoc.rounds||[]).find(function(x){return x.id===b.dataset.rid;}),xf=xr&&(xr.fixtures||[]).find(function(x){return x.id===b.dataset.fid;});
+  if(xf&&canManageSession(id)){
+    var per=Math.max(1,Math.min(2,Math.max((xf.teams[0]||[]).length,(xf.teams[1]||[]).length))),aa=[],bb=[];
+    for(var ei=0;ei<per;ei++){var ae=document.getElementById('edit-a-'+ei),be=document.getElementById('edit-b-'+ei);aa.push(ae?ae.value:'');bb.push(be?be.value:'');}
+    var all=aa.concat(bb);
+    if(all.some(function(x){return !x;})||new Set(all).size!==all.length){ui.err='Select different players for both teams.';}
+    else{xf.teams=[aa,bb];saveSessionDoc(xdoc);ui.editFixture=null;ui.err='Game players updated.';}
+  }
+  render();break;
+}
      case 'deletegame':{
   var dgdoc=sessionDoc(id);
   var dgr=(dgdoc&&dgdoc.rounds||[]).find(function(x){return x.id===b.dataset.rid;});
