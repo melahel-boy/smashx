@@ -938,8 +938,8 @@ function viewDetail(){
   var h='<div class="row sp"><button class="btn sm" data-act="back">← '+(ui.sid?'Session':'Matches')+'</button><span class="small muted">'+esc(fmtDate(m.t))+(m.ex?' · example':'')+'</span></div>';
   h+='<h2>'+(ms.closed?(ms.st==='cancelled'?'Cancelled':'Ended'):(ms.done||hasFinishedGame(m)?'Finished':'In progress'))+'</h2>';
   h+='<p class="small muted" style="margin:-2px 0 8px">'+typeLabel(m)+' · to '+m.tg+' · best of '+m.bo+'</p>';
-  h+='<div class="stack"><div class="card stack">'+[0,1].map(function(T){return '<div class="row sp"><b style="color:var(--'+(T?'tb':'ta')+')">'+esc(teamName(m,T))+'</b><span style="font:800 26px/1 var(--display)">'+ms.w[T]+'</span></div>';}).join('')+
-    '<div class="small muted">'+(scoreLine(ms)||'No points yet')+'</div></div>';
+  var lastGame=m.g[m.g.length-1]||{},lastState=ms.games[ms.games.length-1]||ms.cur,lastWinner=lastState.over?lastState.winner:-1;
+  h+='<div class="stack"><div class="board">'+[0,1].map(function(T){return '<div class="side '+(T===0?'a':'b')+'"><div class="lbl">'+(T===0?'A':'B')+' · '+esc(teamName(m,T))+'</div><div class="num">'+lastState.s[T]+'</div><div class="st">'+(lastWinner===T?'<span class="chip">WON</span>':'')+'</div></div>';}).join('')+'</div><div class="gline"><span>Games won</span><span>'+ms.w[0]+' – '+ms.w[1]+'</span></div><div class="card stack"><b>Game scores</b>'+ms.games.map(function(gs,i){return '<div class="row sp"><span>Game '+(i+1)+'</span><b>'+gs.s[0]+' – '+gs.s[1]+'</b></div>'+(gs.over?'<div class="small good">'+esc(teamName(m,gs.winner))+' WON · '+esc(gameDuration(m.g[i])||'')+'</div>':'');}).join('')+'</div>';
   if(ms.closed){
     var cx=m.cx||{};
     h+='<div class="card stack" style="border-color:var(--bad)"><div><span class="chip bad">'+(ms.st==='cancelled'?'Cancelled':'Ended')+'</span> <span class="small muted">'+(cx.at?esc(new Date(cx.at).toLocaleString()):'')+'</span></div>'+
