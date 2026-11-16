@@ -958,9 +958,9 @@ function playerListHtml(){
   return h;
 }
 function statsSummary(pid){
-  var P=computeStats(liveMatches()).P,own=pid===meId(),mine=own?myPids():[pid],stat=own?sumStats(mine.map(function(id){return P[id]||{};})):P[pid];
+  var P=computeStats(liveMatches()).P,own=pid===meId(),mine=own?myPids():[pid],mineStats=mine.map(function(id){return P[id];}).filter(Boolean),stat=own?sumStats(mineStats):P[pid];
   stat=stat||{m:0,mw:0,ml:0};var played=0,won=0,lost=0,ids=myPids();
-  if(!own)liveMatches().forEach(function(m){var a=teamIds(m,0),b=teamIds(m,1),t=a.indexOf(pid)>=0?0:(b.indexOf(pid)>=0?1:-1);if(t<0||!m.tm.some(function(x){return ids.indexOf(x)>=0;}))return;played++;var ms=matchState(m);if(ms.done){if(ms.winner===t)won++;else lost++;}});
+  if(!own)liveMatches().forEach(function(m){var a=teamIds(m,0),b=teamIds(m,1),t=a.indexOf(pid)>=0?0:(b.indexOf(pid)>=0?1:-1);if(t<0||!Array.isArray(m.tm)||!m.tm.some(function(x){return ids.indexOf(x)>=0;}))return;played++;var ms=matchState(m);if(ms.done){if(ms.winner===t)won++;else lost++;}});
   return{name:own?(cloud.user&&cloud.user.name||'My Profile'):nameOf(pid),games:stat.m||0,won:stat.mw||0,lost:stat.ml||0,played:played,hWon:won,hLost:lost};
 }
 function statsPopup(){
