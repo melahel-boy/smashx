@@ -628,6 +628,7 @@ function sweepSessionLifecycle(){
       S.matches=S.matches.filter(function(m){return !m||m.sid!==sid;});
       S.sessions=S.sessions.filter(function(x){return !x||x.id!==sid;});
       if(ui.sid===sid){ui.sid=null;ui.mid=null;ui.view='list';ui.tab='matches';}
+      safeRender();
     }).catch(function(e){writeErr(e);}).then(function(){delete sessionExpiryJobs[sid];});
   });
 }
