@@ -954,7 +954,7 @@ function viewDetail(){
 function playerListHtml(){
   var me=meId(),pl=players().filter(function(p){return !!p.uid&&p.uid!==me;}),h='';
   if(!pl.length)return emptyCard('No friends yet','Search using a Player ID above to add friends.','');
-  pl.forEach(function(p){var nm=esc(p.name);h+='<div class="card friend-row"><div class="friend-name"><b>'+nm+'</b><span class="small muted">'+esc(displayId(p))+'</span></div><div class="friend-actions"><button class="btn sm" data-act="friendstats" data-id="'+p.id+'">Stats</button><button class="iconbtn" data-act="unlinkp" data-id="'+p.id+'" aria-label="Remove '+nm+' from your friends list" title="Remove friend"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div></div>';});
+  pl.forEach(function(p){var nm=esc(p.name);h+='<div class="card friend-row"><div class="friend-name"><b>'+nm+'</b><span class="small muted">'+esc(displayId(p))+'</span></div><div class="friend-actions"><button class="btn sm" data-act="friendstats" data-id="'+p.id+'">Stats</button>'+(ui.confirm==='ul:'+p.id?'<button class="btn sm danger" data-act="unlinkp" data-id="'+p.id+'">Remove?</button>':'<button class="iconbtn" data-act="unlinkp" data-id="'+p.id+'" aria-label="Remove '+nm+' from your friends list" title="Remove friend"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>')+'</div></div>';});
   return h;
 }
 function statsSummary(pid){
