@@ -49,7 +49,7 @@ button{cursor:pointer}
 .brand svg{width:24px;height:24px;color:var(--accent);flex:none}
 .sync{font-size:12px;color:var(--muted);text-align:right;min-width:0}
 h2{font:700 22px/1.1 var(--display);letter-spacing:.03em;text-transform:uppercase;margin:10px 0 8px;text-wrap:balance}
-h3{font:700 14px/1.2 var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:12px 0 6px}
+h3{font:700 14px/1.2 var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:12px 0 6px}.mygames-section-title{display:flex;align-items:center;justify-content:space-between;width:100%;box-sizing:border-box;padding:9px 10px;margin:12px 0 2px;background:var(--surface2);border:1px solid var(--line);border-radius:10px;color:var(--ink)}
 p{margin:0}
 .muted{color:var(--muted)}
 .small{font-size:13px}
@@ -555,7 +555,7 @@ function emptyCard(title,text,btns){return '<div class="card empty"><b>'+title+'
 
 function gameDuration(g){if(!g||!g.startedAt)return '';var end=Number(g.finishedAt)||Date.now(),sec=Math.max(0,Math.floor((end-Number(g.startedAt))/1000)),mm=Math.floor(sec/60),ss=sec%60;return mm+':'+String(ss).padStart(2,'0')+' min';}
 function hasFinishedGame(m){return !!(m&&Array.isArray(m.g)&&m.g.some(function(g){return gameState(g,m.tg).over;}));}
-function matchCard(m){
+function matchCard(m,hideStatus){
   var ms=matchState(m),done=ms.done||hasFinishedGame(m),closed=ms.closed;
   var line=ms.games.filter(function(g){return g.n>0;}).map(function(g){return g.s[0]+'–'+g.s[1];}).join(' · '),fg=ms.games.slice().reverse().find(function(g){return g.over;});
   var chip=closed?'<span class="chip bad">'+(ms.st==='cancelled'?'Cancelled':'Ended')+'</span>':(done?'<span class="chip">Completed</span>':'<span class="chip srv">In progress</span>');
@@ -563,7 +563,7 @@ function matchCard(m){
   return '<button class="mcard'+(done||closed?'':' live')+'" data-act="open" data-id="'+m.id+'">'+
     '<div class="row sp small muted"><span>'+esc(fmtDate(m.t))+' · '+typeLabel(m)+' · best of '+m.bo+'</span>'+(m.ex?'<span class="chip ex">example</span>':'')+'</div>'+
     [0,1].map(function(T){return '<div class="tn'+(winner===T?' win':'')+'"><span>'+esc(teamName(m,T))+'</span>'+(winner===T?'<span class="winner-tag">WINNER</span>':'')+'</div>';}).join('')+
-    '<div class="mstatus">'+chip+'</div><div class="sc">'+(line||(done||closed?'Score not recorded':'0–0'))+(fg&&gameDuration(m.g[ms.games.indexOf(fg)])?' · '+esc(gameDuration(m.g[ms.games.indexOf(fg)])):'')+'</div></button>';
+    (hideStatus?'':'<div class="mstatus">'+chip+'</div>')+'<div class="sc">'+(line||(done||closed?'Score not recorded':'0–0'))+(fg&&gameDuration(m.g[ms.games.indexOf(fg)])?' · '+esc(gameDuration(m.g[ms.games.indexOf(fg)])):'')+'</div></button>';
 }
 
 function sessionCard(g){
@@ -1152,10 +1152,10 @@ function sumStats(list){
     });
   });
   var h='<h2>My Games</h2><div class="stack">';
-  h+='<h3>Live Games <span class="chip srv">'+live.length+'</span></h3>';
+  h+='<h3 class="mygames-section-title">Live Games <span class="chip srv">'+live.length+'</span></h3>';
   h+=live.length?live.map(matchCard).join(''):
     '<p class="small muted">No live games right now.</p>';
-  h+='<h3>Upcoming Games <span class="chip">'+upcoming.length+'</span></h3>';
+  h+='<h3 class="mygames-section-title">Upcoming Games <span class="chip">'+upcoming.length+'</span></h3>';
   h+=upcoming.length?upcoming.map(function(x){
     return '<button class="mcard" data-act="opensession" data-id="'+esc(x.sid)+'">'+
       '<div class="row sp small muted"><span>'+esc(x.venue)+'</span><span class="chip">Upcoming</span></div>'+
@@ -1165,8 +1165,8 @@ function sumStats(list){
       '<div class="small muted">Open Session</div></button>';
   }).join(''):
     '<p class="small muted">No upcoming games found.</p>';
-  h+='<h3>Completed Games <span class="chip">'+done.length+'</span></h3>';
-  h+=done.length?done.map(matchCard).join(''):
+  h+='<h3 class="mygames-section-title">Completed Games <span class="chip">'+done.length+'</span></h3>';
+  h+=done.length?done.map(function(m){return matchCard(m,true);}).join(''):
     '<p class="small muted">No completed games yet.</p>';
   return h+'</div>';
    }
