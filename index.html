@@ -571,7 +571,7 @@ function viewList(){
 }
 function saveSessionDoc(d){d.u=Date.now();var at=S.sessions.findIndex(function(x){return x.id===d.id;});if(at>=0)S.sessions[at]=d;else S.sessions.push(d);cloud.api.set('sessions',d.id,clean(d)).catch(writeErr);}
 function sessionRoster(d){return d&&Array.isArray(d.roster)?d.roster.filter(Boolean):[];}
-function rescheduleSessionAfterRosterChange(d){var need=d.matchType==='s'?2:4;saveSessionDoc(d);if(sessionRoster(d).length>=need){roundRobin(d,true);}else{ui.err='Player list updated. Add '+(need-sessionRoster(d).length)+' more player(s) to create new games. Existing rounds and history are kept unchanged.';render();}}
+function rescheduleSessionAfterRosterChange(d){saveSessionDoc(d);ui.err='Player list updated. Generate rounds when the players are ready.';render();}
 function sessionPlayerName(id,d){if(String(id).indexOf('slot:')===0)return 'Player '+String(id).slice(5);var g=d&&d.guestPlayers&&d.guestPlayers[id];return g?g.name:nameOf(id);}
 async function deleteSessionMatch(mid){
   var m=S.matches.find(function(x){return x&&x.id===mid;});
@@ -1217,7 +1217,7 @@ async function createSessionOnly(){
   slots.forEach(function(sl){if(sl.playerId&&creatorPlayer&&sl.playerId===creatorPlayer.id)return;var pp=S.players.find(function(x){return x.id===sl.playerId;});if(pp&&pp.uid){members[pp.uid]='player';if(memberUids.indexOf(pp.uid)<0)memberUids.push(pp.uid);}});
   var roster=slots.map(function(sl){return sl.playerId;}).filter(Boolean);
   var d={id:sid,venue:String(f.venue).trim(),sessionDate:f.sessionDate,sessionTime:f.sessionTime,sessionAt:new Date(f.sessionDate+'T'+f.sessionTime).getTime(),visibility:f.visibility||'public',matchType:mode,adminUid:meId(),creatorRole:creatorRole,refereeUid:creatorRole==='referee'?meId():null,memberUids:memberUids,members:members,roleRequests:{},roster:roster,slots:slots,totalPlayers:slots.length,rounds:[],createdAt:now,u:now};
-  try{await cloud.api.set('sessions',sid,d);S.sessions.push(d);roundRobin(d);ui.sid=sid;ui.view='session';ui.err='Session created.';render();window.scrollTo(0,0);}catch(e){ui.err='Could not create session. Check Firebase Rules and internet.';render();}
+  try{await cloud.api.set('sessions',sid,d);S.sessions.push(d);ui.sid=sid;ui.view='session';ui.err='Session created. Add players, then generate rounds.';render();window.scrollTo(0,0);}catch(e){ui.err='Could not create session. Check Firebase Rules and internet.';render();}
 }
 async function findPlayerByUniqueId(raw){
   var pid=String(raw||'').trim().toUpperCase();ui.playerSearchId=pid;ui.playerSearchResult=null;ui.playerSearchIsSelf=false;ui.playerSearchError='';
