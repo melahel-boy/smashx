@@ -362,7 +362,8 @@ function syncText(){
 function updSync(){var el=document.getElementById('sync');if(el)el.textContent=syncText();}
 function writeErr(e){ui.err=(e&&e.code==='permission-denied')?'Permission denied. Check your session role and Firebase Rules.':'Could not save. Check your connection and Firebase Rules.';render();}
 function touchP(p){p.u=Date.now();cloud.api.set('players',p.id,clean(p)).catch(writeErr);render();}
-function touchM(m){m.u=Date.now();m.pids=m.tm.slice();cloud.api.set('matches',m.id,clean(m)).catch(writeErr);}
+var matchWriteQueues={};
+function touchM(m){m.u=Date.now();m.pids=m.tm.slice();var id=m.id,snapshot=clean(m),previous=matchWriteQueues[id]||Promise.resolve();var pending=previous.catch(function(){}).then(function(){return cloud.api.set('matches',id,snapshot);}).catch(writeErr);matchWriteQueues[id]=pending;return pending;}
 function stopWatch(){cloud.stops.forEach(function(f){try{f();}catch(e){}});cloud.stops=[];}
 function mergeDocs(a,b){var map={};(a||[]).concat(b||[]).forEach(function(x){if(x&&x.id)map[x.id]=x;});return Object.keys(map).map(function(k){return map[k];});}
 function privatizeOwnedSessions(){
@@ -589,7 +590,7 @@ function rescheduleSessionAfterRosterChange(d){
   if(old.length){
     var per=(d.matchType||'d')==='s'?2:4,ids=sessionRoster(d).filter(function(x,i,a){return x&&a.indexOf(x)===i;});
     if(ids.length<per){
-      d.rounds=old.filter(function(rr){return (rr.fixtures||[]).some(function(fx){var linked=fx.matchId&&S.matches.find(function(m){return m&&m.id===fx.matchId;});return !!(fx.matchId||fx.startedAt||(linked&&matchState(linked).done));});});
+      d.rounds=old.filter(function(rr){return (rr.fixtures||[]).some(function(fx){var linked=fx.matchId&&S.matches.find(function(m){return m&&m.id===fx.matchId;});return !!(fx.startedAt||linked);});});
       saveSessionDoc(d);ui.err='Player list updated. Add at least '+per+' players to refresh the remaining rounds.';render();return;
     }
     roundRobin(d,true);return;
@@ -828,7 +829,7 @@ if(isMember(g.sid)&&role==='player'&&meId()!==d.adminUid)h+='<button class="btn 
    if(d&&canManageSession(g.sid))h+=roundHtml(d)+'<button class="btn danger block" data-act="delsession" data-id="'+esc(g.sid)+'">Delete Session</button>';
   if(g.sid&&canManageSession(g.sid))h+='<div class="card stack"><b>Add a game</b><div class="grid2"><button class="btn primary block" data-act="addgame" data-id="'+esc(g.sid)+'">＋ Add Doubles Game</button><button class="btn block" data-act="addsinglesgame" data-id="'+esc(g.sid)+'">＋ Add Singles Game</button></div><p class="small muted">Singles applies only to that game. The Session remains '+(d.matchType==='s'?'Singles':'Doubles')+'.</p></div>';
 
-  h+='<div class="stack">'+g.games.map(matchCard).join('')+'</div>';
+  /* Round fixtures above are the session's match list; avoid a duplicate match-card list here. */
   return h;
 }
 
@@ -979,7 +980,7 @@ function viewDetail(){
     h+=canScore(m)&&!ms.done&&!hasFinishedGame(m)?'<div class="row"><button class="btn primary" data-act="resume" data-id="'+m.id+'">Resume scoring</button></div></div>':'<p class="small muted">'+(ms.done||hasFinishedGame(m)?'Completed game · View only.':'View-only access. Only the appointed Scorekeeper or Referee can change scores.')+'</p></div>';
   }else{
     h+='<div class="row">'+(ms.closed||ms.done||hasFinishedGame(m)?'':'<button class="btn primary" data-act="resume" data-id="'+m.id+'">Resume scoring</button>')+
-      (ui.confirm==='del:'+m.id?'<button class="btn danger" data-act="delmatch" data-id="'+m.id+'">Tap again to delete</button>':'<button class="btn danger" data-act="delmatch" data-id="'+m.id+'">Delete match</button>')+'</div>'+(ms.closed||ms.done?'':cxCard(m))+'</div>';
+      (ui.confirm==='del:'+m.id?'<button class="btn danger" data-act="delmatch" data-id="'+m.id+'">Tap again to delete</button>':'<button class="btn danger" data-act="delmatch" data-id="'+m.id+'">Delete match</button>')+'</div>'+(ms.closed||ms.done||hasFinishedGame(m)?'':cxCard(m))+'</div>';
   }
   return h;
 }
@@ -1504,7 +1505,7 @@ case 'savefirstserve':{var fm=S.matches.find(function(x){return x.id===id;}),fg=
     case 'addgame':{var sgp=sessionGroups().find(function(x){return x.sid===id;});if(sgp){ui.sid=id;ui.form={venue:sgp.venue,sessionDate:sgp.date,sessionTime:sgp.time,ty:'d',sessionType:'d'};ui.err='';ui.view='new';render();window.scrollTo(0,0);}break;}
     case 'addsinglesgame':{var ssg=sessionGroups().find(function(x){return x.sid===id;});if(ssg){ui.sid=id;ui.form={venue:ssg.venue,sessionDate:ssg.date,sessionTime:ssg.time,ty:'s',sessionType:'d'};ui.err='';ui.view='new';render();window.scrollTo(0,0);}break;}
     case 'delsession':{var ds=sessionDoc(id);if(ds&&canManageSession(id)){if(!window.confirm('Delete this Session and all its Games? This cannot be undone.'))break;(async function(){try{var gm=S.matches.filter(function(x){return x&&x.sid===id;});for(var di=0;di<gm.length;di++){await cloud.api.del('matches',gm[di].id);}await cloud.api.del('sessions',id);S.matches=S.matches.filter(function(x){return !x||x.sid!==id;});S.sessions=S.sessions.filter(function(x){return x.id!==id;});ui.sid=null;ui.mid=null;ui.view='list';ui.err='Session and its Games deleted.';render();window.scrollTo(0,0);}catch(de){ui.err='Could not delete Session. Check Firebase Rules and try again.';render();}})();}break;}
-    case 'open':{ui.mid=id;var m=curMatch();ui.sid=m&&m.sid?m.sid:null;ui.view=m&&(matchState(m).done||matchState(m).closed||(!canScore(m)&&!canManageSession(m.sid)))?'detail':'match';ui.shot='';ui.next=null;render();window.scrollTo(0,0);break;}
+    case 'open':{ui.mid=id;var m=curMatch();ui.sid=m&&m.sid?m.sid:null;ui.view=m&&(matchState(m).done||matchState(m).closed||hasFinishedGame(m)||(!canScore(m)&&!canManageSession(m.sid)))?'detail':'match';ui.shot='';ui.next=null;render();window.scrollTo(0,0);break;}
     case 'detail':ui.mid=id;ui.view='detail';render();window.scrollTo(0,0);break;
     case 'resume':{var rm=S.matches.find(function(x){return x.id===id;});if(rm&&!matchState(rm).done&&!hasFinishedGame(rm)&&(canScore(rm)||canManageSession(rm.sid))){ui.mid=id;ui.tab='matches';ui.view='match';ui.next=null;render();window.scrollTo(0,0);}break;}
     case 'pt':addRally(b.dataset.p,'w');break;
