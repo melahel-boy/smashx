@@ -636,23 +636,40 @@ function sweepSessionLifecycle(){
   });
 }
 async function rescheduleSessionAfterRosterChange(d){
-  if(Array.isArray(d.slots)){var slotIds=d.slots.filter(function(sl){return sl&&sl.playerId;}).map(function(sl){return sl.playerId;});var oldRoster=Array.isArray(d.roster)?d.roster:[];d.roster=slotIds.concat(oldRoster.filter(function(pid){return slotIds.indexOf(pid)<0;}));}
-  var old=Array.isArray(d.rounds)?d.rounds:[];
+  // Filled slots are authoritative. Do not merge removed IDs from the old roster.
+  if(Array.isArray(d.slots)){
+    d.roster=d.slots.filter(function(sl){return sl&&sl.playerId&&String(sl.playerId).indexOf('slot:')!==0;}).map(function(sl){return sl.playerId;}).filter(function(pid,i,a){return a.indexOf(pid)===i;});
+  }else{
+    d.roster=sessionRoster(d).filter(function(pid,i,a){return pid&&String(pid).indexOf('slot:')!==0&&a.indexOf(pid)===i;});
+  }
+  var old=Array.isArray(d.rounds)?d.rounds:[],per=(d.matchType||'d')==='s'?2:4;
+  var ids=sessionRoster(d).filter(function(pid,i,a){return pid&&a.indexOf(pid)===i;});
   if(old.length){
-    var per=(d.matchType||'d')==='s'?2:4,ids=sessionRoster(d).filter(function(x,i,a){return x&&a.indexOf(x)===i;});
+    var kept=[];
+    old.forEach(function(rr){
+      var locked=(rr.fixtures||[]).filter(function(fx){
+        var linked=fx.matchId&&S.matches.find(function(m){return m&&m.id===fx.matchId;});
+        return !!(fx.startedAt||linked);
+      });
+      if(locked.length)kept.push(Object.assign({},rr,{fixtures:locked}));
+    });
     if(ids.length<per){
-      d.rounds=old.map(function(rr){var keptFixtures=(rr.fixtures||[]).filter(function(fx){var linked=fx.matchId&&S.matches.find(function(m){return m&&m.id===fx.matchId;});return !!(fx.startedAt||linked);});return Object.assign({},rr,{fixtures:keptFixtures});}).filter(function(rr){return rr.fixtures.length>0;});
-      saveSessionDoc(d);
-      try{await cloud.api.set('sessions',d.id,clean(d));}catch(e){writeErr(e);}
-      ui.err='Player list updated. Add at least '+per+' players to refresh the remaining rounds.';render();return;
+      d.rounds=kept;saveSessionDoc(d);
+      try{await cloud.api.set('sessions',d.id,sessionForFirestore(d));}
+      catch(e){writeErr(e);ui.err='Player list changed, but cloud sync failed. Check connection.';render();return;}
+      ui.err='Player list updated. Add at least '+per+' players to regenerate the remaining rounds.';render();return;
     }
+    d.rounds=kept;
     roundRobin(d,true);
-    try{await cloud.api.set('sessions',d.id,clean(d));}catch(e){writeErr(e);}
-    S.sessions=S.sessions.map(function(x){return x&&x.id===d.id?d:x;});
-    ui.err='Player list updated. Remaining rounds have been regenerated.';render();return;
+    try{await cloud.api.set('sessions',d.id,sessionForFirestore(d));}
+    catch(e){writeErr(e);ui.err='Rounds changed on this device, but cloud sync failed. Check connection.';render();return;}
+    var at=S.sessions.findIndex(function(x){return x&&x.id===d.id;});
+    if(at>=0)S.sessions[at]=d;else S.sessions.push(d);
+    ui.roundsExpandedSid=d.id;ui.err='Player list updated. Remaining rounds have been regenerated.';render();return;
   }
   saveSessionDoc(d);
-  try{await cloud.api.set('sessions',d.id,clean(d));}catch(e){writeErr(e);}
+  try{await cloud.api.set('sessions',d.id,sessionForFirestore(d));}
+  catch(e){writeErr(e);ui.err='Player list changed, but cloud sync failed.';render();return;}
   ui.err='Player list updated.';render();
 }
 function sessionPlayerName(id,d){if(String(id).indexOf('slot:')===0)return 'Player '+String(id).slice(5);var g=d&&d.guestPlayers&&d.guestPlayers[id];return g?g.name:nameOf(id);}
