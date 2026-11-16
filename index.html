@@ -181,7 +181,8 @@ var SHOTS=[['s','Smash'],['d','Drop'],['n','Net'],['v','Drive'],['l','Lob'],['x'
 var SHOT={};SHOTS.forEach(function(x){SHOT[x[0]]=x[1];});
 var CAP={21:30,15:21,11:15};
 function uid(){return Date.now().toString(36).slice(-4)+Math.random().toString(36).slice(2,6);}
-function sessionUid(){try{var a=new Uint8Array(18);crypto.getRandomValues(a);return Array.from(a).map(function(x){return x.toString(16).padStart(2,'0');}).join('');}catch(e){return uid()+uid()+uid()+uid();}}
+function sessionUid(){var letters='ABCDEFGHIJKLMNOPQRSTUVWXYZ',digits='0123456789',out='',a=new Uint8Array(7);try{crypto.getRandomValues(a);}catch(e){for(var i=0;i<7;i++)a[i]=Math.floor(Math.random()*256);}for(var j=0;j<3;j++)out+=letters.charAt(a[j]%26);for(var k=3;k<7;k++)out+=digits.charAt(a[k]%10);return out;}
+async function availableSessionUid(){for(var i=0;i<20;i++){var code=sessionUid();if(S.sessions.some(function(x){return x&&x.id===code;}))continue;var exists=await cloud.api.get('sessions',code);if(!exists)return code;}throw new Error('Could not allocate a free session code. Please try again.');}
 function isOver(a,b,tg){var mx=Math.max(a,b);return (mx>=tg&&Math.abs(a-b)>=2)||mx>=(CAP[tg]||tg+9);}
 function parseR(s){var a=String(s).split(':');return{t:+a[0],p:a[1],k:a[2],s:a[3]||''};}
 /* pos = [A right, A left, B right, B left]. Index 0 of a team is the right court. */
@@ -585,6 +586,51 @@ function viewList(){
 }
 function saveSessionDoc(d){d.u=Date.now();var at=S.sessions.findIndex(function(x){return x.id===d.id;});if(at>=0)S.sessions[at]=d;else S.sessions.push(d);cloud.api.set('sessions',d.id,clean(d)).catch(writeErr);}
 function sessionRoster(d){return d&&Array.isArray(d.roster)?d.roster.filter(Boolean):[];}
+var sessionExpiryJobs={};
+function sessionRoundsFinished(d){
+  var rounds=Array.isArray(d&&d.rounds)?d.rounds:[],count=0;
+  if(!rounds.length)return false;
+  for(var i=0;i<rounds.length;i++){
+    var fixtures=Array.isArray(rounds[i].fixtures)?rounds[i].fixtures:[];
+    if(!fixtures.length)return false;
+    for(var j=0;j<fixtures.length;j++){
+      var fx=fixtures[j],m=fx&&fx.matchId&&S.matches.find(function(x){return x&&x.id===fx.matchId;});
+      if(!m)return false;
+      var ms=matchState(m);
+      if(!ms.done&&!ms.closed)return false;
+      count++;
+    }
+  }
+  return count>0;
+}
+function sweepSessionLifecycle(){
+  if(!cloud.user)return;
+  var now=Date.now();
+  S.sessions.slice().forEach(function(d){
+    if(!d||!d.id)return;
+    var finished=sessionRoundsFinished(d);
+    if(finished&&!d.completedAt){
+      d.completedAt=now;d.expiresAt=now+86400000;d.u=now;
+      cloud.api.set('sessions',d.id,clean(d)).catch(writeErr);
+      return;
+    }
+    if(!finished&&d.completedAt){
+      delete d.completedAt;delete d.expiresAt;d.u=now;
+      cloud.api.set('sessions',d.id,clean(d)).catch(writeErr);
+      return;
+    }
+    if(!d.expiresAt||now<Number(d.expiresAt)||sessionExpiryJobs[d.id])return;
+    var sid=d.id;sessionExpiryJobs[sid]=true;
+    var matches=S.matches.filter(function(m){return m&&m.sid===sid;});
+    Promise.all(matches.map(function(m){return cloud.api.del('matches',m.id);})).then(function(){
+      return cloud.api.del('sessions',sid);
+    }).then(function(){
+      S.matches=S.matches.filter(function(m){return !m||m.sid!==sid;});
+      S.sessions=S.sessions.filter(function(x){return !x||x.id!==sid;});
+      if(ui.sid===sid){ui.sid=null;ui.mid=null;ui.view='list';ui.tab='matches';}
+    }).catch(function(e){writeErr(e);}).then(function(){delete sessionExpiryJobs[sid];});
+  });
+}
 function rescheduleSessionAfterRosterChange(d){
   var old=Array.isArray(d.rounds)?d.rounds:[];
   if(old.length){
@@ -822,7 +868,7 @@ function viewSession(){
 if(ui.fixtureSetup&&ui.fixtureSetup.sid===g.sid){var fs=ui.fixtureSetup,fr=(d.rounds||[]).find(function(x){return x.id===fs.rid;}),ff=fr&&(fr.fixtures||[]).find(function(x){return x.id===fs.fid;}),tt=ff&&ff.teams||[[],[]],all=(tt[0]||[]).concat(tt[1]||[]),st=(tt[0]||[]).indexOf(fs.serverId)>=0?0:1,opp=tt[st===0?1:0]||[],so=all.map(function(pid){return '<option value="'+esc(pid)+'"'+(pid===fs.serverId?' selected':'')+'>'+esc(sessionPlayerName(pid,d))+'</option>';}).join(''),ro=opp.map(function(pid){return '<option value="'+esc(pid)+'"'+(pid===fs.receiverId?' selected':'')+'>'+esc(sessionPlayerName(pid,d))+'</option>';}).join('');return '<div class="row sp"><button class="btn sm" data-act="fixturecancel">← Back</button></div><h2>Game Setup</h2><p class="small muted">Select the first Server and Receiver before starting this game.</p><form data-form="fixture-start" class="card stack"><div class="field"><label for="fixture-server">First Server</label><select id="fixture-server">'+so+'</select></div><div class="field"><label for="fixture-receiver">First Receiver</label><select id="fixture-receiver">'+ro+'</select></div><button class="btn primary block" type="submit">Start Game</button><button class="btn block" type="button" data-act="fixturecancel">Cancel</button></form>';} 
    
    if(!isMember(g.sid))h+='<div class="card stack"><p class="small">Choose your role to join this session.</p><form data-form="join" class="stack"><input type="text" id="joinid" value="'+esc(g.sid)+'" hidden><div class="inl"><select id="joinrole"><option value="player">Player</option><option value="refereeRequest">Referee (request approval)</option><option value="spectator">Spectator</option></select><button class="btn primary" type="submit">Join this session</button></div></form></div>';
-  else h+='<div class="card stack"><div class="row sp"><span class="small muted">Session ID: <b>'+esc(g.sid)+'</b></span><button class="btn sm" data-act="copylink" data-id="'+esc(g.sid)+'">Share Join Link</button></div>'+
+  else h+='<div class="card stack"><div class="row sp"><span class="small muted">Session ID: <b>'+esc(g.sid)+'</b></span><button class="btn sm" data-act="copylink" data-id="'+esc(g.sid)+'">Join Link</button></div>'+
     (canManageSession(g.sid)?'<div class="field"><label for="refereeuid">Appoint / change Referee</label><div class="inl"><select id="refereeuid"><option value="">No Referee</option>'+Object.keys(d.members||{}).filter(function(uid){return uid!==d.adminUid&&d.members[uid]!=='refereeRequest';}).map(function(uid){var p=S.players.find(function(x){return x.uid===uid;});return '<option value="'+esc(uid)+'"'+(d.refereeUid===uid?' selected':'')+'>'+(p?esc(p.name):'Member')+'</option>';}).join('')+'</select><button class="btn" data-act="setref" data-id="'+esc(g.sid)+'">Save Referee</button></div></div>' : '')+
     (d.roleRequests&&Object.keys(d.roleRequests).length&&canManageSession(g.sid)?'<p class="small muted">Referee requests: '+Object.keys(d.roleRequests).length+'</p>'+Object.keys(d.roleRequests).map(function(uid){var p=S.players.find(function(x){return x.uid===uid;});return '<button class="btn sm" data-act="approveref" data-id="'+esc(g.sid)+'" data-uid="'+esc(uid)+'">Approve '+(p?esc(p.name):'member')+' as Referee</button>';}).join(''):'')+'</div>';
 if(isMember(g.sid)&&role==='player'&&meId()!==d.adminUid)h+='<button class="btn danger block" data-act="exitsession" data-id="'+esc(g.sid)+'">Exit Session</button>';
@@ -1152,6 +1198,7 @@ function playerPage(p,title,top){
 }
 
 function render(){
+  sweepSessionLifecycle();
   var v=document.getElementById('view');if(!v)return;var nav=document.querySelector('.nav');
   if(ui.auth==='loading'||ui.auth==='setup'){nav.hidden=true;v.innerHTML=viewAuth();updSync();return;}
   nav.hidden=false;var guest=ui.auth!=='in',activeRole=ui.sid?myRole(ui.sid):'';
@@ -1222,7 +1269,7 @@ async function createSessionOnly(){
   var mode=(f.sessionType||'d')==='s'?'s':'d',creatorRole=f.creatorRole==='referee'?'referee':'player';
   var min=mode==='s'?2:4,total=min;
   var selected=[];for(var si=1;si<=total;si++){var chosen=(f.sessionSlots||{})[si];if(chosen&&selected.indexOf(chosen)<0)selected.push(chosen);}
-  var now=Date.now(),sid=sessionUid(),members={},memberUids=[meId()],creatorPlayer=null;
+  var now=Date.now(),sid;try{sid=await availableSessionUid();}catch(codeErr){ui.err='Could not create a short Session ID. Please try again.';render();return;}var members={},memberUids=[meId()],creatorPlayer=null;
   members[meId()]=creatorRole;
   if(creatorRole==='player'){
     creatorPlayer=players().find(function(p){return p.uid===meId();})||null;
@@ -1263,6 +1310,7 @@ async function joinSession(raw,role){
       render();return;
     }
 
+    if(d.expiresAt&&Date.now()>=Number(d.expiresAt)){ui.joinError='This Session ID has expired. Ask the organiser for a new link.';render();return;}
     if(!cloud.user){ui.joinError='Sign in with Google to join this private session.';render();return;}
     var chosen=role||'player';
     var members=d.members||{};
