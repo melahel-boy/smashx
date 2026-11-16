@@ -558,7 +558,7 @@ function matchCard(m){
   return '<button class="mcard'+(done||closed?'':' live')+'" data-act="open" data-id="'+m.id+'">'+
     '<div class="row sp small muted"><span>'+esc(fmtDate(m.t))+' · '+typeLabel(m)+' · to '+m.tg+' · best of '+m.bo+'</span><span>'+(m.ex?'<span class="chip ex">example</span> ':'')+chip+'</span></div>'+
     [0,1].map(function(T){return '<div class="tn'+((ms.winner===T||(fg&&fg.winner===T))?' win':'')+'"><span>'+esc(teamName(m,T))+'</span></div>';}).join('')+
-    '<div class="sc">'+(line||'0–0')+(fg&&gameDuration(m.g[ms.games.indexOf(fg)])?' · '+esc(gameDuration(m.g[ms.games.indexOf(fg)])):'')+'</div></button>';
+    '<div class="sc">'+(line||(done||closed?'Score not recorded':'0–0'))+(fg&&gameDuration(m.g[ms.games.indexOf(fg)])?' · '+esc(gameDuration(m.g[ms.games.indexOf(fg)])):'')+'</div></button>';
 }
 
 function sessionCard(g){
