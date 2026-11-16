@@ -1551,6 +1551,7 @@ case 'savefirstserve':{var fm=S.matches.find(function(x){return x.id===id;}),fg=
     case 'player':ui.pid=id;ui.view='player';render();window.scrollTo(0,0);break;
   }
 });
+document.addEventListener('keydown',function(e){var t=e.target;if(t&&t.matches&&t.matches('.simple-team[role="button"]')&&(e.key==='Enter'||e.key===' ')){e.preventDefault();if(!simpleScore.over)simplePoint(t.dataset.side);}});
 document.addEventListener('submit',function(e){
   var f=e.target.closest('form[data-form]');if(!f)return;
   e.preventDefault();
