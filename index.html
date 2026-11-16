@@ -98,6 +98,8 @@ textarea{padding:10px 12px;min-height:90px;font:12px/1.35 ui-monospace,Menlo,Con
 .mcard .tn span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .mcard .tn.win{font-weight:800}
 .mcard .sc{font:700 20px/1 var(--display);letter-spacing:.04em;font-variant-numeric:tabular-nums}
+.mcard .mstatus{display:flex;justify-content:flex-end;align-items:center;margin-top:1px}
+.mcard .winner-tag{font-size:11px;font-weight:900;color:var(--accent);white-space:nowrap}
 .live{border-color:var(--accent);box-shadow:inset 6px 0 0 var(--accent)}
 
 /* Scoring */
@@ -557,10 +559,11 @@ function matchCard(m){
   var ms=matchState(m),done=ms.done||hasFinishedGame(m),closed=ms.closed;
   var line=ms.games.filter(function(g){return g.n>0;}).map(function(g){return g.s[0]+'–'+g.s[1];}).join(' · '),fg=ms.games.slice().reverse().find(function(g){return g.over;});
   var chip=closed?'<span class="chip bad">'+(ms.st==='cancelled'?'Cancelled':'Ended')+'</span>':(done?'<span class="chip">Completed</span>':'<span class="chip srv">In progress</span>');
+  var winner=ms.winner>=0?ms.winner:(fg?fg.winner:-1);
   return '<button class="mcard'+(done||closed?'':' live')+'" data-act="open" data-id="'+m.id+'">'+
-    '<div class="row sp small muted"><span>'+esc(fmtDate(m.t))+' · '+typeLabel(m)+' · to '+m.tg+' · best of '+m.bo+'</span><span>'+(m.ex?'<span class="chip ex">example</span> ':'')+chip+'</span></div>'+
-    [0,1].map(function(T){return '<div class="tn'+((ms.winner===T||(fg&&fg.winner===T))?' win':'')+'"><span>'+esc(teamName(m,T))+'</span></div>';}).join('')+
-    '<div class="sc">'+(line||(done||closed?'Score not recorded':'0–0'))+(fg&&gameDuration(m.g[ms.games.indexOf(fg)])?' · '+esc(gameDuration(m.g[ms.games.indexOf(fg)])):'')+'</div></button>';
+    '<div class="row sp small muted"><span>'+esc(fmtDate(m.t))+' · '+typeLabel(m)+' · to '+m.tg+' · best of '+m.bo+'</span>'+(m.ex?'<span class="chip ex">example</span>':'')+'</div>'+
+    [0,1].map(function(T){return '<div class="tn'+(winner===T?' win':'')+'"><span>'+esc(teamName(m,T))+'</span>'+(winner===T?'<span class="winner-tag">WINNER</span>':'')+'</div>';}).join('')+
+    '<div class="mstatus">'+chip+'</div><div class="sc">'+(line||(done||closed?'Score not recorded':'0–0'))+(fg&&gameDuration(m.g[ms.games.indexOf(fg)])?' · '+esc(gameDuration(m.g[ms.games.indexOf(fg)])):'')+'</div></button>';
 }
 
 function sessionCard(g){
@@ -964,6 +967,8 @@ function viewScore(){
   h+='<div class="board" style="margin-top:8px">'+(ui.flip?[1,0]:[0,1]).map(function(T){
     var chips='';
     if(!over&&g.srv===T)chips+='<span class="chip srv">Serving</span>';
+    if(!over&&g.s[0]===g.s[1]&&g.s[0]>=tg-1)chips+='<span class="chip hi">Deuce</span>';
+    else if(!over&&Math.max(g.s[0],g.s[1])>=tg&&Math.abs(g.s[0]-g.s[1])===1&&((g.s[0]>g.s[1]?0:1)===T))chips+='<span class="chip hi">Advantage</span>';
     if(gp[T])chips+='<span class="chip hi">'+(ms.w[T]+1>=ms.need?'Match point':'Game point')+'</span>';
     return '<div class="side '+(T===0?'a':'b')+'"><div class="lbl">'+(T===0?'A':'B')+' · '+esc(teamName(m,T))+'</div><div class="num" aria-label="Score">'+g.s[T]+'</div><div class="st">'+chips+'</div></div>';
   }).join('')+'</div>';
@@ -975,7 +980,7 @@ function viewScore(){
   h+='<div class="teamboard">'+(ui.flip?[teamCard(m,ms,1,gs,over),teamCard(m,ms,0,gs,over)]:[teamCard(m,ms,0,gs,over),teamCard(m,ms,1,gs,over)]).join('')+'</div>';
   var canUndo=m.g[m.g.length-1].r.length>0;h+='<div class="row" style="margin:7px 0 10px"><button class="btn" data-act="undo"'+(canUndo&&canScore(m)?'':' disabled')+'>↶ Undo last point</button></div>';
   if(over&&ui.winPopupDismissed!==m.id+':'+gi){var winT=g.winner,wonNames=teamName(m,winT),elapsed=gameDuration(m.g[gi-1]);h+='<div class="simple-modal"><div class="modal-card stack"><h2 style="color:var(--'+(winT===0?'ta':'tb')+')">'+esc(wonNames)+' WON!</h2><p class="small muted">'+esc(teamName(m,0))+' vs '+esc(teamName(m,1))+'</p><div class="sc">'+g.s[0]+' – '+g.s[1]+'</div><p class="small muted">'+(elapsed||'Time unavailable')+'</p><button class="btn primary block" data-act="dismisswin">View result</button></div></div>';} 
-  if(!over&&g.s[0]===g.s[1]&&g.s[0]>=tg-1)h+='<div class="simple-status"><span class="chip hi">Deuce</span></div>';else if(!over&&Math.max(g.s[0],g.s[1])>=tg&&Math.abs(g.s[0]-g.s[1])===1)h+='<div class="simple-status"><span class="chip hi">Advantage '+esc(teamName(m,g.s[0]>g.s[1]?0:1))+'</span></div>';
+  
   
 if((m.g[gi-1].r||[]).length===0&&canManageSession(m.sid)){var opts='<option value="">Not appointed — Session Admin can score</option>',sd=sessionDoc(m.sid);sessionRoster(sd).forEach(function(pid){var pp=S.players.find(function(x){return x&&x.id===pid;});if(pp&&pp.uid&&(!sd||pp.uid!==sd.refereeUid))opts+='<option value="'+esc(pp.uid)+'">'+esc(pp.name)+'</option>';});if(sd&&sd.refereeUid)opts+='<option value="'+esc(sd.refereeUid)+'">Referee</option>';h+='<div class="card stack" style="margin-top:12px"><b>Appoint Scorekeeper for Game '+gi+'</b><div class="inl"><select id="scorekeeperuid">'+opts+'</select><button class="btn primary" data-act="setsk" data-id="'+m.id+'">Confirm</button></div><p class="small muted">If no Scorekeeper is appointed, Session Admin can score this game.</p></div>';}else if(g.sk){h+='<p class="small muted">Scorekeeper: '+esc((S.players.find(function(x){return x.uid===g.sk;})||{}).name|| (sessionDoc(m.sid)&&sessionDoc(m.sid).refereeUid===g.sk?'Referee':'Appointed member'))+'</p>'; }
  if(!over&&g.n===0&&canManageSession(m.sid)){var cur=gameState(g,tg),st=teamIds(m,teamIds(m,0).indexOf(cur.server)>=0?0:1),rt=teamIds(m,1-(teamIds(m,0).indexOf(cur.server)>=0?0:1));h+='<div class="card stack" style="margin-top:12px"><b>First Server / Receiver</b><div class="grid2"><div class="field"><label>Server</label><select id="firstserver">'+m.tm.map(function(pid){return '<option value="'+esc(pid)+'"'+(pid===cur.server?' selected':'')+'>'+esc(nameOf(pid))+'</option>';}).join('')+'</select></div><div class="field"><label>Receiver</label><select id="firstreceiver">'+rt.map(function(pid){return '<option value="'+esc(pid)+'"'+(pid===cur.receiver?' selected':'')+'>'+esc(nameOf(pid))+'</option>';}).join('')+'</select></div></div><button class="btn primary block" data-act="savefirstserve" data-id="'+m.id+'">Save Server / Receiver</button></div>';}else if(!over){/* Server and receiver are identified on player cards. */}  
