@@ -49,7 +49,7 @@ button{cursor:pointer}
 .brand svg{width:24px;height:24px;color:var(--accent);flex:none}
 .sync{font-size:12px;color:var(--muted);text-align:right;min-width:0}
 h2{font:700 22px/1.1 var(--display);letter-spacing:.03em;text-transform:uppercase;margin:10px 0 8px;text-wrap:balance}
-h3{font:700 14px/1.2 var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:12px 0 6px}.mygames-section-title{display:flex;align-items:center;justify-content:space-between;width:100%;box-sizing:border-box;padding:9px 10px;margin:12px 0 2px;background:var(--surface2);border:1px solid var(--line);border-radius:10px;color:var(--ink)}
+h3{font:700 14px/1.2 var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:12px 0 6px}.mygames-section-title{display:flex;align-items:center;justify-content:space-between;width:100%;box-sizing:border-box;padding:9px 10px;margin:12px 0 2px;background:var(--surface2);border:1px solid var(--line);border-radius:10px;color:var(--ink)}.completed-games-scroll{max-height:56vh;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:1px 2px 6px;display:grid;gap:8px}
 p{margin:0}
 .muted{color:var(--muted)}
 .small{font-size:13px}
@@ -494,7 +494,7 @@ function liveMatches(){
   });
   return Object.keys(map).map(function(id){return map[id];});
 }
-function nameOf(id){var p=S.players.find(function(x){return x&&x.id===id;});if(p)return p.name;for(var i=0;i<S.sessions.length;i++){var d=S.sessions[i],g=d&&d.guestPlayers&&d.guestPlayers[id];if(g)return g.name||'Guest Player';}return 'Player';} function teamName(m,T){return teamIds(m,T).map(nameOf).join(' & ');}
+function nameOf(id,m){var saved=m&&m.playerNames&&m.playerNames[id];if(saved)return saved;var p=S.players.find(function(x){return x&&x.id===id;});if(p)return p.name;for(var i=0;i<S.sessions.length;i++){var d=S.sessions[i],g=d&&d.guestPlayers&&d.guestPlayers[id];if(g)return g.name||'Guest Player';}return 'Player';} function teamName(m,T){return teamIds(m,T).map(function(pid){return nameOf(pid,m);}).join(' & ');}
 function typeLabel(m){return Array.isArray(m&&m.tm)&&m.tm.length===2?'Singles':'Doubles';}
 function curMatch(){return S.matches.find(function(m){return m.id===ui.mid&&!m.del;});}
 function fmtDate(t){try{return new Date(t).toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short'});}catch(e){return '';}}
@@ -560,7 +560,7 @@ function matchCard(m,hideStatus){
   var line=ms.games.filter(function(g){return g.n>0;}).map(function(g){return g.s[0]+'–'+g.s[1];}).join(' · '),fg=ms.games.slice().reverse().find(function(g){return g.over;});
   var chip=closed?'<span class="chip bad">'+(ms.st==='cancelled'?'Cancelled':'Ended')+'</span>':(done?'<span class="chip">Completed</span>':'<span class="chip srv">In progress</span>');
   var winner=ms.winner>=0?ms.winner:(fg?fg.winner:-1);
-  return '<button class="mcard'+(done||closed?'':' live')+'" data-act="open" data-id="'+m.id+'">'+
+  return '<button type="button" class="mcard'+(done||closed?'':' live')+'" data-act="'+(hideStatus?'opencompleted':'open')+'" data-id="'+m.id+'">'+
     '<div class="row sp small muted"><span>'+esc(fmtDate(m.t))+' · '+typeLabel(m)+' · best of '+m.bo+'</span>'+(m.ex?'<span class="chip ex">example</span>':'')+'</div>'+
     [0,1].map(function(T){return '<div class="tn'+(winner===T?' win':'')+'"><span>'+esc(teamName(m,T))+'</span>'+(winner===T?'<span class="winner-tag">WINNER</span>':'')+'</div>';}).join('')+
     (hideStatus?'':'<div class="mstatus">'+chip+'</div>')+'<div class="sc">'+(line||(done||closed?'Score not recorded':'0–0'))+(fg&&gameDuration(m.g[ms.games.indexOf(fg)])?' · '+esc(gameDuration(m.g[ms.games.indexOf(fg)])):'')+'</div></button>';
@@ -733,7 +733,7 @@ var ids=teams[0].concat(teams[1]).filter(function(x){return typeof x==='string'&
     ui.err='One or more players are already playing another active game.';
     render();return;
   }
-  var sg=(fx.teams[0]||[]).length===1,serverId=serverIdArg,receiverId=receiverIdArg,firstServerTeam=teams[0].indexOf(serverId)>=0?0:1,oppositeTeam=teams[firstServerTeam===0?1:0];if(ids.indexOf(serverId)<0||!oppositeTeam||oppositeTeam.indexOf(receiverId)<0){ui.err='Invalid Server or Receiver selection.';render();return;}var pos=ids.slice();if(!sg){var serverBase=firstServerTeam===0?0:2,receiverBase=firstServerTeam===0?2:0,serverPos=pos.indexOf(serverId),receiverPos=pos.indexOf(receiverId),tempServer=pos[serverBase];pos[serverBase]=serverId;pos[serverPos]=tempServer;var tempReceiver=pos[receiverBase];pos[receiverBase]=receiverId;pos[receiverPos]=tempReceiver;}var now=Date.now();var m={id:uid(),t:now,u:now,tg:21,bo:3,ty:sg?'s':'d',tm:ids,by:meId(),pids:ids.slice(),sid:sid,venue:d.venue||'',sessionDate:d.sessionDate||'',sessionTime:d.sessionTime||'',sessionAt:d.sessionAt||now,visibility:'private',memberUids:d.memberUids||[],playerUids:ids.map(function(pid){var p=S.players.find(function(x){return x.id===pid;});return p&&p.uid?p.uid:null;}).filter(Boolean),roundId:rid,fixtureId:fid,g:[{f:firstServerTeam,pos:pos,r:[],sk:null}]};
+  var sg=(fx.teams[0]||[]).length===1,serverId=serverIdArg,receiverId=receiverIdArg,firstServerTeam=teams[0].indexOf(serverId)>=0?0:1,oppositeTeam=teams[firstServerTeam===0?1:0];if(ids.indexOf(serverId)<0||!oppositeTeam||oppositeTeam.indexOf(receiverId)<0){ui.err='Invalid Server or Receiver selection.';render();return;}var pos=ids.slice();if(!sg){var serverBase=firstServerTeam===0?0:2,receiverBase=firstServerTeam===0?2:0,serverPos=pos.indexOf(serverId),receiverPos=pos.indexOf(receiverId),tempServer=pos[serverBase];pos[serverBase]=serverId;pos[serverPos]=tempServer;var tempReceiver=pos[receiverBase];pos[receiverBase]=receiverId;pos[receiverPos]=tempReceiver;}var now=Date.now();var playerNames={};ids.forEach(function(pid){var pp=S.players.find(function(x){return x&&x.id===pid;});var gg=d.guestPlayers&&d.guestPlayers[pid];playerNames[pid]=pp&&pp.name?pp.name:(gg&&gg.name?gg.name:'Guest Player');});var m={id:uid(),t:now,u:now,tg:21,bo:3,ty:sg?'s':'d',tm:ids,playerNames:playerNames,by:meId(),pids:ids.slice(),sid:sid,venue:d.venue||'',sessionDate:d.sessionDate||'',sessionTime:d.sessionTime||'',sessionAt:d.sessionAt||now,visibility:'private',memberUids:d.memberUids||[],playerUids:ids.map(function(pid){var p=S.players.find(function(x){return x.id===pid;});return p&&p.uid?p.uid:null;}).filter(Boolean),roundId:rid,fixtureId:fid,g:[{f:firstServerTeam,pos:pos,r:[],sk:null}]};
   S.matches.push(m);
   fx.matchId=m.id;fx.startedAt=now;
   ui.mid=m.id;ui.sid=sid;ui.tab='matches';ui.view='match';ui.err='';
@@ -1151,6 +1151,8 @@ function sumStats(list){
       });
     });
   });
+  done.sort(function(a,b){return (Number(b.t)||0)-(Number(a.t)||0);});
+  live.sort(function(a,b){return (Number(b.t)||0)-(Number(a.t)||0);});
   var h='<h2>My Games</h2><div class="stack">';
   h+='<h3 class="mygames-section-title">Live Games <span class="chip srv">'+live.length+'</span></h3>';
   h+=live.length?live.map(matchCard).join(''):
@@ -1166,8 +1168,7 @@ function sumStats(list){
   }).join(''):
     '<p class="small muted">No upcoming games found.</p>';
   h+='<h3 class="mygames-section-title">Completed Games <span class="chip">'+done.length+'</span></h3>';
-  h+=done.length?done.map(function(m){return matchCard(m,true);}).join(''):
-    '<p class="small muted">No completed games yet.</p>';
+  h+=done.length?'<div class="completed-games-scroll">'+done.map(function(m){return matchCard(m,true);}).join('')+'</div>':'<p class="small muted">No completed games yet.</p>';
   return h+'</div>';
    }
 function fixBtn(){return '<div style="margin-top:8px"><button class="btn sm" data-act="hardreload">Refresh app</button></div>';}
@@ -1291,7 +1292,7 @@ async function startMatch(){
   var sessionAt=new Date(sessionDate+'T'+sessionTime).getTime();
   var parent=sessionDoc(sid),visibility='private';
   var memberUids=parent?(parent.memberUids||[]):[meId()];
-  var m={id:uid(),t:now,u:now,tg:+f.tg,bo:bo,ty:sg?'s':'d',tm:ids,by:meId(),pids:ids.slice(),sid:sid,venue:venue,sessionDate:sessionDate,sessionTime:sessionTime,sessionAt:sessionAt,visibility:visibility,memberUids:memberUids,playerUids:ids.map(function(pid){var pp=S.players.find(function(x){return x.id===pid;});return pp&&pp.uid?pp.uid:null;}).filter(Boolean),g:[{f:+f.sv,pos:ids.slice(),r:[],sk:null}]};
+  var playerNames={};ids.forEach(function(pid){var pp=S.players.find(function(x){return x&&x.id===pid;});var gg=parent&&parent.guestPlayers&&parent.guestPlayers[pid];playerNames[pid]=pp&&pp.name?pp.name:(gg&&gg.name?gg.name:'Guest Player');});var m={id:uid(),t:now,u:now,tg:+f.tg,bo:bo,ty:sg?'s':'d',tm:ids,playerNames:playerNames,by:meId(),pids:ids.slice(),sid:sid,venue:venue,sessionDate:sessionDate,sessionTime:sessionTime,sessionAt:sessionAt,visibility:visibility,memberUids:memberUids,playerUids:ids.map(function(pid){var pp=S.players.find(function(x){return x.id===pid;});return pp&&pp.uid?pp.uid:null;}).filter(Boolean),g:[{f:+f.sv,pos:ids.slice(),r:[],sk:null}]};
   if(!parent){var sd={id:sid,venue:venue,sessionDate:sessionDate,sessionTime:sessionTime,sessionAt:sessionAt,visibility:visibility,adminUid:meId(),refereeUid:null,memberUids:[meId()],members:{},roleRequests:{},createdAt:now,u:now};S.sessions.push(sd);try{await cloud.api.set('sessions',sid,sd);}catch(se){S.sessions=S.sessions.filter(function(x){return x.id!==sid;});ui.err='Could not create the session in Firebase. Check Firestore Rules and try again.';render();return;}}
   S.matches.push(m);touchM(m);ui.mid=m.id;ui.sid=sid;ui.view='match';ui.err='';ui.shot='';render();window.scrollTo(0,0);
 }
@@ -1585,6 +1586,7 @@ case 'savefirstserve':{var fm=S.matches.find(function(x){return x.id===id;}),fg=
     case 'addgame':{var sgp=sessionGroups().find(function(x){return x.sid===id;});if(sgp){ui.sid=id;ui.form={venue:sgp.venue,sessionDate:sgp.date,sessionTime:sgp.time,ty:'d',sessionType:'d'};ui.err='';ui.view='new';render();window.scrollTo(0,0);}break;}
     case 'addsinglesgame':{var ssg=sessionGroups().find(function(x){return x.sid===id;});if(ssg){ui.sid=id;ui.form={venue:ssg.venue,sessionDate:ssg.date,sessionTime:ssg.time,ty:'s',sessionType:'d'};ui.err='';ui.view='new';render();window.scrollTo(0,0);}break;}
     case 'delsession':{var ds=sessionDoc(id);if(ds&&canManageSession(id)){if(!window.confirm('Delete this Session and all its Games? This cannot be undone.'))break;(async function(){try{var gm=S.matches.filter(function(x){return x&&x.sid===id;});for(var di=0;di<gm.length;di++){await cloud.api.del('matches',gm[di].id);}await cloud.api.del('sessions',id);S.matches=S.matches.filter(function(x){return !x||x.sid!==id;});S.sessions=S.sessions.filter(function(x){return x.id!==id;});ui.sid=null;ui.mid=null;ui.view='list';ui.err='Session and its Games deleted.';render();window.scrollTo(0,0);}catch(de){ui.err='Could not delete Session. Check Firebase Rules and try again.';render();}})();}break;}
+    case 'opencompleted':{ui.mid=id;var cm=curMatch();ui.sid=cm&&cm.sid?cm.sid:null;ui.view='detail';ui.shot='';ui.next=null;render();window.scrollTo(0,0);break;}
     case 'open':{ui.mid=id;var m=curMatch();ui.sid=m&&m.sid?m.sid:null;ui.view=m&&(matchState(m).done||matchState(m).closed||hasFinishedGame(m)||(!canScore(m)&&!canManageSession(m.sid)))?'detail':'match';ui.shot='';ui.next=null;render();window.scrollTo(0,0);break;}
     case 'detail':ui.mid=id;ui.view='detail';render();window.scrollTo(0,0);break;
     case 'resume':{var rm=S.matches.find(function(x){return x.id===id;});if(rm&&!matchState(rm).done&&!hasFinishedGame(rm)&&(canScore(rm)||canManageSession(rm.sid))){ui.mid=id;ui.tab='matches';ui.view='match';ui.next=null;render();window.scrollTo(0,0);}break;}
