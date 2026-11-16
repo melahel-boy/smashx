@@ -790,8 +790,8 @@ function roundHtml(d){
   '</div>';
 });                               
 out+='</div>';});
-if(rounds.length)out+='</div></details><button class="btn primary block" data-act="generaterounds" data-id="'+esc(d.id)+'">＋ Add Next Round</button>';
-  if(ui.editFixture&&ui.editFixture.sid===d.id){
+if(rounds.length)out+='</div></details><button class="btn primary block" data-act="generaterounds" data-id="'+esc(d.id)+'">＋ Add Next Round</button>';}
+if(ui.editFixture&&ui.editFixture.sid===d.id){
     var es=ui.editFixture,er=rounds.find(function(x){return x.id===es.rid;}),ef=er&&(er.fixtures||[]).find(function(x){return x.id===es.fid;});
     if(ef){
       var ec=Math.max(1,Math.min(2,Math.max((ef.teams[0]||[]).length,(ef.teams[1]||[]).length)));
