@@ -365,13 +365,22 @@ function touchP(p){p.u=Date.now();cloud.api.set('players',p.id,clean(p)).catch(w
 function touchM(m){m.u=Date.now();m.pids=m.tm.slice();cloud.api.set('matches',m.id,clean(m)).catch(writeErr);}
 function stopWatch(){cloud.stops.forEach(function(f){try{f();}catch(e){}});cloud.stops=[];}
 function mergeDocs(a,b){var map={};(a||[]).concat(b||[]).forEach(function(x){if(x&&x.id)map[x.id]=x;});return Object.keys(map).map(function(k){return map[k];});}
+function privatizeOwnedSessions(){
+  if(!meId())return;
+  S.sessions.forEach(function(ss){
+    if(!ss||ss.adminUid!==meId()||ss.visibility==='private')return;
+    ss.visibility='private';ss.u=Date.now();
+    cloud.api.set('sessions',ss.id,clean(ss)).catch(writeErr);
+    S.matches.forEach(function(mm){if(mm&&mm.sid===ss.id&&mm.visibility!=='private'){mm.visibility='private';mm.u=Date.now();cloud.api.set('matches',mm.id,clean(mm)).catch(writeErr);}});
+  });
+}
 function startWatch(){
   stopWatch();var watchedSid={};function watchSessionGames(){S.sessions.forEach(function(ss){if(ss&&ss.id&&!watchedSid[ss.id]&&(isMember(ss.id)||ss.adminUid===meId()||isDefaultAdmin())){watchedSid[ss.id]=true;cloud.stops.push(cloud.api.watchQuery('matches','sid','==',ss.id,function(docs,md){S.matches=mergeDocs(S.matches,docs.filter(okMatch));safeRender();updSync();},function(){}));}});}
   cloud.stops.push(cloud.api.watch('players',function(docs,md){S.players=docs.filter(function(p){return p&&p.id&&typeof p.name==='string';});cloud.pending=md.hasPendingWrites;cloud.fromCache=md.fromCache;ensureMe();safeRender();updSync();},function(){ui.err='Could not load players.';}));
-  function watchMerge(col,field,op,val,kind){cloud.stops.push(cloud.api.watchQuery(col,field,op,val,function(docs,md){S[kind]=mergeDocs(S[kind],docs);if(kind==='sessions')watchSessionGames();cloud.pending=md.hasPendingWrites;cloud.fromCache=md.fromCache;safeRender();updSync();},function(){/* A second query may be empty or denied; the other visibility query remains active. */}));}
+  function watchMerge(col,field,op,val,kind){cloud.stops.push(cloud.api.watchQuery(col,field,op,val,function(docs,md){S[kind]=mergeDocs(S[kind],docs);if(kind==='sessions'){privatizeOwnedSessions();watchSessionGames();}cloud.pending=md.hasPendingWrites;cloud.fromCache=md.fromCache;safeRender();updSync();},function(){/* A second query may be empty or denied; the other visibility query remains active. */}));}
   /* Sessions are private: only members receive the membership query below. */
   watchMerge('sessions','memberUids','array-contains',meId(),'sessions');
-  if(isDefaultAdmin()){cloud.stops.push(cloud.api.watch('sessions',function(docs,md){S.sessions=mergeDocs(S.sessions,docs);watchSessionGames();safeRender();},function(){}));cloud.stops.push(cloud.api.watch('matches',function(docs,md){S.matches=mergeDocs(S.matches,docs.filter(okMatch));safeRender();updSync();},function(){}));}
+  if(isDefaultAdmin()){cloud.stops.push(cloud.api.watch('sessions',function(docs,md){S.sessions=mergeDocs(S.sessions,docs);privatizeOwnedSessions();watchSessionGames();safeRender();},function(){}));cloud.stops.push(cloud.api.watch('matches',function(docs,md){S.matches=mergeDocs(S.matches,docs.filter(okMatch));safeRender();updSync();},function(){}));}
   watchSessionGames();
   /* Private matches are loaded through memberUids / owner queries only. */
   watchMerge('matches','memberUids','array-contains',meId(),'matches');
