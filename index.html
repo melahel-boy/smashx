@@ -635,17 +635,24 @@ function sweepSessionLifecycle(){
     }).catch(function(e){writeErr(e);}).then(function(){delete sessionExpiryJobs[sid];});
   });
 }
-function rescheduleSessionAfterRosterChange(d){
+async function rescheduleSessionAfterRosterChange(d){
   var old=Array.isArray(d.rounds)?d.rounds:[];
   if(old.length){
     var per=(d.matchType||'d')==='s'?2:4,ids=sessionRoster(d).filter(function(x,i,a){return x&&a.indexOf(x)===i;});
     if(ids.length<per){
       d.rounds=old.map(function(rr){var keptFixtures=(rr.fixtures||[]).filter(function(fx){var linked=fx.matchId&&S.matches.find(function(m){return m&&m.id===fx.matchId;});return !!(fx.startedAt||linked);});return Object.assign({},rr,{fixtures:keptFixtures});}).filter(function(rr){return rr.fixtures.length>0;});
-      saveSessionDoc(d);ui.err='Player list updated. Add at least '+per+' players to refresh the remaining rounds.';render();return;
+      saveSessionDoc(d);
+      try{await cloud.api.set('sessions',d.id,clean(d));}catch(e){writeErr(e);}
+      ui.err='Player list updated. Add at least '+per+' players to refresh the remaining rounds.';render();return;
     }
-    roundRobin(d,true);return;
+    roundRobin(d,true);
+    try{await cloud.api.set('sessions',d.id,clean(d));}catch(e){writeErr(e);}
+    S.sessions=S.sessions.map(function(x){return x&&x.id===d.id?d:x;});
+    ui.err='Player list updated. Remaining rounds have been regenerated.';render();return;
   }
-  saveSessionDoc(d);ui.err='Player list updated.';render();
+  saveSessionDoc(d);
+  try{await cloud.api.set('sessions',d.id,clean(d));}catch(e){writeErr(e);}
+  ui.err='Player list updated.';render();
 }
 function sessionPlayerName(id,d){if(String(id).indexOf('slot:')===0)return 'Player '+String(id).slice(5);var g=d&&d.guestPlayers&&d.guestPlayers[id];return g?g.name:nameOf(id);}
 async function deleteSessionMatch(mid){
