@@ -628,7 +628,16 @@ async function deleteSessionMatch(mid){
   var fx=rr&&(rr.fixtures||[]).find(function(x){return x.id===fid;});
   if(!fx)return;
   if(fx.matchId){
-    ui.mid=fx.matchId;ui.sid=sid;ui.tab='matches';ui.view='match';render();return;
+    var linkedMatch=S.matches.find(function(x){return x&&x.id===fx.matchId;});
+    if(!linkedMatch){
+      try{linkedMatch=await cloud.api.get('matches',fx.matchId);}catch(e){linkedMatch=null;}
+      if(linkedMatch&&okMatch(linkedMatch))S.matches.push(linkedMatch);
+    }
+    if(linkedMatch&&okMatch(linkedMatch)){
+      ui.mid=fx.matchId;ui.sid=sid;ui.tab='matches';ui.view='match';render();window.scrollTo(0,0);return;
+    }
+    fx.matchId=null;fx.startedAt=null;
+    await cloud.api.set('sessions',sid,clean(d));
   }
   var teams=Array.isArray(fx.teams)?fx.teams:[];
 if(teams.length!==2||!Array.isArray(teams[0])||!Array.isArray(teams[1])){
