@@ -584,7 +584,18 @@ function viewList(){
 }
 function saveSessionDoc(d){d.u=Date.now();var at=S.sessions.findIndex(function(x){return x.id===d.id;});if(at>=0)S.sessions[at]=d;else S.sessions.push(d);cloud.api.set('sessions',d.id,clean(d)).catch(writeErr);}
 function sessionRoster(d){return d&&Array.isArray(d.roster)?d.roster.filter(Boolean):[];}
-function rescheduleSessionAfterRosterChange(d){saveSessionDoc(d);ui.err='Player list updated. Generate rounds when the players are ready.';render();}
+function rescheduleSessionAfterRosterChange(d){
+  var old=Array.isArray(d.rounds)?d.rounds:[];
+  if(old.length){
+    var per=(d.matchType||'d')==='s'?2:4,ids=sessionRoster(d).filter(function(x,i,a){return x&&a.indexOf(x)===i;});
+    if(ids.length<per){
+      d.rounds=old.filter(function(rr){return (rr.fixtures||[]).some(function(fx){var linked=fx.matchId&&S.matches.find(function(m){return m&&m.id===fx.matchId;});return !!(fx.matchId||fx.startedAt||(linked&&matchState(linked).done));});});
+      saveSessionDoc(d);ui.err='Player list updated. Add at least '+per+' players to refresh the remaining rounds.';render();return;
+    }
+    roundRobin(d,true);return;
+  }
+  saveSessionDoc(d);ui.err='Player list updated.';render();
+}
 function sessionPlayerName(id,d){if(String(id).indexOf('slot:')===0)return 'Player '+String(id).slice(5);var g=d&&d.guestPlayers&&d.guestPlayers[id];return g?g.name:nameOf(id);}
 async function deleteSessionMatch(mid){
   var m=S.matches.find(function(x){return x&&x.id===mid;});
@@ -617,7 +628,7 @@ async function deleteSessionMatch(mid){
   var fx=rr&&(rr.fixtures||[]).find(function(x){return x.id===fid;});
   if(!fx)return;
   if(fx.matchId){
-    ui.mid=fx.matchId;ui.sid=sid;ui.view='match';render();return;
+    ui.mid=fx.matchId;ui.sid=sid;ui.tab='matches';ui.view='match';render();return;
   }
   var teams=Array.isArray(fx.teams)?fx.teams:[];
 if(teams.length!==2||!Array.isArray(teams[0])||!Array.isArray(teams[1])){
@@ -643,7 +654,7 @@ var ids=teams[0].concat(teams[1]).filter(function(x){return typeof x==='string'&
     fx.matchId=m.id;fx.startedAt=now;
     await cloud.api.set('sessions',sid,clean(d));
     S.matches.push(m);
-    ui.mid=m.id;ui.sid=sid;ui.view='match';ui.err='';
+    ui.mid=m.id;ui.sid=sid;ui.tab='matches';ui.view='match';ui.err='';
     render();window.scrollTo(0,0);
   }catch(e){
     ui.err='Could not start this game. Check connection and Firebase Rules.';
@@ -956,9 +967,9 @@ function viewDetail(){
       lines.map(function(l){return '<li><span class="s '+(l.t===0?'ta':'tb')+'">'+l.sc+'</span><span>'+esc(l.text)+'</span></li>';}).join('')+'</ul></details>';
   });
   if(!canManageSession(m.sid)){
-    h+=canScore(m)?'<div class="row"><button class="btn primary" data-act="resume" data-id="'+m.id+'">'+(ms.done?'Edit scoring':'Resume scoring')+'</button></div></div>':'<p class="small muted">View-only access. Only the appointed Scorekeeper or Referee can change scores.</p></div>';
+    h+=canScore(m)&&!ms.done&&!hasFinishedGame(m)?'<div class="row"><button class="btn primary" data-act="resume" data-id="'+m.id+'">Resume scoring</button></div></div>':'<p class="small muted">'+(ms.done||hasFinishedGame(m)?'Completed game · View only.':'View-only access. Only the appointed Scorekeeper or Referee can change scores.')+'</p></div>';
   }else{
-    h+='<div class="row">'+(ms.closed?'':'<button class="btn primary" data-act="resume" data-id="'+m.id+'">'+(ms.done?'Edit scoring':'Resume scoring')+'</button>')+
+    h+='<div class="row">'+(ms.closed||ms.done||hasFinishedGame(m)?'':'<button class="btn primary" data-act="resume" data-id="'+m.id+'">Resume scoring</button>')+
       (ui.confirm==='del:'+m.id?'<button class="btn danger" data-act="delmatch" data-id="'+m.id+'">Tap again to delete</button>':'<button class="btn danger" data-act="delmatch" data-id="'+m.id+'">Delete match</button>')+'</div>'+(ms.closed||ms.done?'':cxCard(m))+'</div>';
   }
   return h;
@@ -1486,7 +1497,7 @@ case 'savefirstserve':{var fm=S.matches.find(function(x){return x.id===id;}),fg=
     case 'delsession':{var ds=sessionDoc(id);if(ds&&canManageSession(id)){if(!window.confirm('Delete this Session and all its Games? This cannot be undone.'))break;(async function(){try{var gm=S.matches.filter(function(x){return x&&x.sid===id;});for(var di=0;di<gm.length;di++){await cloud.api.del('matches',gm[di].id);}await cloud.api.del('sessions',id);S.matches=S.matches.filter(function(x){return !x||x.sid!==id;});S.sessions=S.sessions.filter(function(x){return x.id!==id;});ui.sid=null;ui.mid=null;ui.view='list';ui.err='Session and its Games deleted.';render();window.scrollTo(0,0);}catch(de){ui.err='Could not delete Session. Check Firebase Rules and try again.';render();}})();}break;}
     case 'open':{ui.mid=id;var m=curMatch();ui.sid=m&&m.sid?m.sid:null;ui.view=m&&(matchState(m).done||matchState(m).closed||(!canScore(m)&&!canManageSession(m.sid)))?'detail':'match';ui.shot='';ui.next=null;render();window.scrollTo(0,0);break;}
     case 'detail':ui.mid=id;ui.view='detail';render();window.scrollTo(0,0);break;
-    case 'resume':{var rm=S.matches.find(function(x){return x.id===id;});if(rm&&(canScore(rm)||canManageSession(rm.sid))){ui.mid=id;ui.view='match';ui.next=null;render();window.scrollTo(0,0);}break;}
+    case 'resume':{var rm=S.matches.find(function(x){return x.id===id;});if(rm&&!matchState(rm).done&&!hasFinishedGame(rm)&&(canScore(rm)||canManageSession(rm.sid))){ui.mid=id;ui.tab='matches';ui.view='match';ui.next=null;render();window.scrollTo(0,0);}break;}
     case 'pt':addRally(b.dataset.p,'w');break;
     case 'dismisswin':{var wm=curMatch();ui.winPopupDismissed=wm?wm.id+':'+wm.g.length:true;render();break;}
     case 'er':addRally(b.dataset.p,'e');break;
