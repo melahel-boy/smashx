@@ -553,12 +553,12 @@ function gameDuration(g){if(!g||!g.startedAt)return '';var end=Number(g.finished
 function hasFinishedGame(m){return !!(m&&Array.isArray(m.g)&&m.g.some(function(g){return gameState(g,m.tg).over;}));}
 function matchCard(m){
   var ms=matchState(m),done=ms.done||hasFinishedGame(m),closed=ms.closed;
-  var line=ms.games.filter(function(g){return g.n>0;}).map(function(g){return g.s[0]+'–'+g.s[1];}).join(' · ');
+  var line=ms.games.filter(function(g){return g.n>0;}).map(function(g){return g.s[0]+'–'+g.s[1];}).join(' · '),fg=ms.games.slice().reverse().find(function(g){return g.over;});
   var chip=closed?'<span class="chip bad">'+(ms.st==='cancelled'?'Cancelled':'Ended')+'</span>':(done?'<span class="chip">Completed</span>':'<span class="chip srv">In progress</span>');
   return '<button class="mcard'+(done||closed?'':' live')+'" data-act="open" data-id="'+m.id+'">'+
     '<div class="row sp small muted"><span>'+esc(fmtDate(m.t))+' · '+typeLabel(m)+' · to '+m.tg+' · best of '+m.bo+'</span><span>'+(m.ex?'<span class="chip ex">example</span> ':'')+chip+'</span></div>'+
-    [0,1].map(function(T){return '<div class="tn'+(ms.winner===T?' win':'')+'"><span>'+esc(teamName(m,T))+'</span><span>'+(ms.winner===T?'Won ':'')+ms.w[T]+'</span></div>';}).join('')+
-    '<div class="sc">'+(line||'0–0')+'</div></button>';
+    [0,1].map(function(T){return '<div class="tn'+((ms.winner===T||(fg&&fg.winner===T))?' win':'')+'"><span>'+esc(teamName(m,T))+'</span><span>'+((ms.winner===T||(fg&&fg.winner===T))?'Won ':'')+(ms.winner>=0?ms.w[T]:(fg&&fg.s[T]||0))+'</span></div>';}).join('')+
+    '<div class="sc">'+(line||'0–0')+'</div>'+(fg?'<div class="small muted">'+(gameDuration(m.g[ms.games.indexOf(fg)])||'')+'</div>':'')+'</button>';
 }
 
 function sessionCard(g){
@@ -906,7 +906,7 @@ function viewScore(){
   }
   h+='<div class="teamboard">'+(ui.flip?[teamCard(m,ms,1,gs,over),teamCard(m,ms,0,gs,over)]:[teamCard(m,ms,0,gs,over),teamCard(m,ms,1,gs,over)]).join('')+'</div>';
   var canUndo=m.g[m.g.length-1].r.length>0;h+='<div class="row" style="margin:7px 0 10px"><button class="btn" data-act="undo"'+(canUndo&&canScore(m)?'':' disabled')+'>↶ Undo last point</button></div>';
-  if(over){var winT=g.winner,wonNames=teamName(m,winT),elapsed=gameDuration(m.g[gi-1]);h+='<div class="simple-modal"><div class="modal-card stack"><h2 style="color:var(--'+(winT===0?'ta':'tb')+')">'+esc(wonNames)+' WON!</h2><p class="small muted">'+esc(teamName(m,0))+' vs '+esc(teamName(m,1))+'</p><div class="sc">'+g.s[0]+' – '+g.s[1]+'</div><p class="small muted">'+(elapsed||'Time unavailable')+'</p><button class="btn primary block" data-act="dismisswin">View result</button></div></div>';} 
+  if(over&&ui.winPopupDismissed!==m.id+':'+gi){var winT=g.winner,wonNames=teamName(m,winT),elapsed=gameDuration(m.g[gi-1]);h+='<div class="simple-modal"><div class="modal-card stack"><h2 style="color:var(--'+(winT===0?'ta':'tb')+')">'+esc(wonNames)+' WON!</h2><p class="small muted">'+esc(teamName(m,0))+' vs '+esc(teamName(m,1))+'</p><div class="sc">'+g.s[0]+' – '+g.s[1]+'</div><p class="small muted">'+(elapsed||'Time unavailable')+'</p><button class="btn primary block" data-act="dismisswin">View result</button></div></div>';} 
   if(!over&&g.s[0]===g.s[1]&&g.s[0]>=tg-1)h+='<div class="simple-status"><span class="chip hi">Deuce</span></div>';else if(!over&&Math.max(g.s[0],g.s[1])>=tg&&Math.abs(g.s[0]-g.s[1])===1)h+='<div class="simple-status"><span class="chip hi">Advantage '+esc(teamName(m,g.s[0]>g.s[1]?0:1))+'</span></div>';
   
 if((m.g[gi-1].r||[]).length===0&&canManageSession(m.sid)){var opts='<option value="">Not appointed — Session Admin can score</option>',sd=sessionDoc(m.sid);sessionRoster(sd).forEach(function(pid){var pp=S.players.find(function(x){return x&&x.id===pid;});if(pp&&pp.uid&&(!sd||pp.uid!==sd.refereeUid))opts+='<option value="'+esc(pp.uid)+'">'+esc(pp.name)+'</option>';});if(sd&&sd.refereeUid)opts+='<option value="'+esc(sd.refereeUid)+'">Referee</option>';h+='<div class="card stack" style="margin-top:12px"><b>Appoint Scorekeeper for Game '+gi+'</b><div class="inl"><select id="scorekeeperuid">'+opts+'</select><button class="btn primary" data-act="setsk" data-id="'+m.id+'">Confirm</button></div><p class="small muted">If no Scorekeeper is appointed, Session Admin can score this game.</p></div>';}else if(g.sk){h+='<p class="small muted">Scorekeeper: '+esc((S.players.find(function(x){return x.uid===g.sk;})||{}).name|| (sessionDoc(m.sid)&&sessionDoc(m.sid).refereeUid===g.sk?'Referee':'Appointed member'))+'</p>'; }
@@ -951,8 +951,8 @@ function viewDetail(){
     '</tbody></table></div>';
   m.g.forEach(function(g,i){
     var gst=ms.games[i];if(!gst.n)return;
-    var lines=rallyLines(m,g,gst);
-    h+='<details><summary>Game '+(i+1)+' · '+gst.s[0]+'–'+gst.s[1]+'</summary><ul class="log" style="margin-top:8px">'+
+    var lines=rallyLines(m,g,gst),won=gst.over?'<b> · '+esc(teamName(m,gst.winner))+' WON</b>':'';
+    h+='<details><summary>Game '+(i+1)+' · '+gst.s[0]+'–'+gst.s[1]+won+' · '+esc(gameDuration(g)||'')+'</summary><ul class="log" style="margin-top:8px">'+
       lines.map(function(l){return '<li><span class="s '+(l.t===0?'ta':'tb')+'">'+l.sc+'</span><span>'+esc(l.text)+'</span></li>';}).join('')+'</ul></details>';
   });
   if(!canManageSession(m.sid)){
@@ -1488,7 +1488,7 @@ case 'savefirstserve':{var fm=S.matches.find(function(x){return x.id===id;}),fg=
     case 'detail':ui.mid=id;ui.view='detail';render();window.scrollTo(0,0);break;
     case 'resume':{var rm=S.matches.find(function(x){return x.id===id;});if(rm&&(canScore(rm)||canManageSession(rm.sid))){ui.mid=id;ui.view='match';ui.next=null;render();window.scrollTo(0,0);}break;}
     case 'pt':addRally(b.dataset.p,'w');break;
-    case 'dismisswin':ui.winPopupDismissed=true;render();break;
+    case 'dismisswin':{var wm=curMatch();ui.winPopupDismissed=wm?wm.id+':'+wm.g.length:true;render();break;}
     case 'er':addRally(b.dataset.p,'e');break;
     case 'mtype':readForm();ui.form.ty=b.dataset.t;ui.err='';render();break;
     case 'cxopen':ui.cx={id:id,kind:'ended',reason:''};render();break;
