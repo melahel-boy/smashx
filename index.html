@@ -571,9 +571,9 @@ function viewList(){
 }
 function saveSessionDoc(d){d.u=Date.now();var at=S.sessions.findIndex(function(x){return x.id===d.id;});if(at>=0)S.sessions[at]=d;else S.sessions.push(d);cloud.api.set('sessions',d.id,clean(d)).catch(writeErr);}
 function sessionRoster(d){return d&&Array.isArray(d.roster)?d.roster.filter(Boolean):[];}
-function rescheduleSessionAfterRosterChange(d){var need=d.matchType==='s'?2:4;if(sessionRoster(d).length>=need){roundRobin(d);}else{d.rounds=(d.rounds||[]).map(function(rr){return {id:rr.id,name:rr.name,fixtures:(rr.fixtures||[]).filter(function(fx){return !!(fx.matchId||fx.startedAt);}),bye:rr.bye||[],createdAt:rr.createdAt||Date.now()};}).filter(function(rr){return rr.fixtures.length>0;});saveSessionDoc(d);ui.err='Player list updated. Add '+(need-sessionRoster(d).length)+' more player(s) to create new games.';render();}}
+function rescheduleSessionAfterRosterChange(d){var need=d.matchType==='s'?2:4;if(sessionRoster(d).length>=need){roundRobin(d,true);}else{d.rounds=(d.rounds||[]).map(function(rr){return {id:rr.id,name:rr.name,fixtures:(rr.fixtures||[]).filter(function(fx){return !!(fx.matchId||fx.startedAt);}),bye:rr.bye||[],createdAt:rr.createdAt||Date.now()};}).filter(function(rr){return rr.fixtures.length>0;});saveSessionDoc(d);ui.err='Player list updated. Add '+(need-sessionRoster(d).length)+' more player(s) to create new games.';render();}}
 function sessionPlayerName(id,d){if(String(id).indexOf('slot:')===0)return 'Player '+String(id).slice(5);var g=d&&d.guestPlayers&&d.guestPlayers[id];return g?g.name:nameOf(id);}
-   async function deleteSessionMatch(mid){
+async function deleteSessionMatch(mid){
   var m=S.matches.find(function(x){return x&&x.id===mid;});
   await cloud.api.del('matches',mid);
   S.matches=S.matches.filter(function(x){return !x||x.id!==mid;});
@@ -637,7 +637,7 @@ var ids=teams[0].concat(teams[1]).filter(function(x){return typeof x==='string'&
     render();
   }
 }
-function roundRobin(d){
+function roundRobin(d,forceRebuild){
   var ids=sessionRoster(d).filter(function(x,i,a){
     return x&&a.indexOf(x)===i;
   });
@@ -650,8 +650,8 @@ function roundRobin(d){
     ui.err='Add at least '+per+' joined players to generate games.';
     render();return;
   }
-
-  var old=Array.isArray(d.rounds)?d.rounds:[];
+   var old=Array.isArray(d.rounds)?d.rounds:[];
+if(old.length&&!forceRebuild){var nextCounts={};ids.forEach(function(pid){nextCounts[pid]=0;});old.forEach(function(rr){(rr.fixtures||[]).forEach(function(fx){(fx.teams||[]).forEach(function(team){(team||[]).forEach(function(pid){if(nextCounts[pid]!==undefined)nextCounts[pid]++;});});});});var nextPool=ids.slice().sort(function(a,b){return nextCounts[a]-nextCounts[b]||Math.random()-.5;}).slice(0,per);for(var ni=nextPool.length-1;ni>0;ni--){var nj=Math.floor(Math.random()*(ni+1)),nt=nextPool[ni];nextPool[ni]=nextPool[nj];nextPool[nj]=nt;}var nh=per/2,nr=old.length+1;d.rounds.push({id:uid(),name:'Round '+nr,fixtures:[{id:uid(),teams:[nextPool.slice(0,nh),nextPool.slice(nh)],names:['Team A','Team B']}],bye:ids.filter(function(pid){return nextPool.indexOf(pid)<0;}),createdAt:Date.now()});saveSessionDoc(d);ui.err='Round '+nr+' added.';render();return;}
   var kept=[],counts={};
   ids.forEach(function(pid){counts[pid]=0;});
 
@@ -775,9 +775,9 @@ function roundHtml(d){
   out+='<div class="card stack"><b>Round-Robin · '+(d.matchType==='s'?'Singles':'Doubles')+'</b>';if(slots.length){out+='<div class="field"><label for="sessionTotalPlayers">Total player slots</label><div class="inl"><input id="sessionTotalPlayers" type="number" min="'+Math.max(2,slots.filter(function(x){return x&&x.playerId;}).length)+'" max="100" value="'+(d.totalPlayers||slots.length)+'"><button class="btn sm" data-act="updateslots" data-id="'+esc(d.id)+'">Update</button></div></div><div class="slot-grid">'+slots.map(function(sl){return '<div class="slot-card"><b>Player '+sl.number+'</b><span>'+(sl.playerId?esc(nameOf(sl.playerId)):'<span class="muted">Waiting to join</span>')+'</span></div>';}).join('')+'</div>';} 
   out+='<details class="card"><summary>Add players</summary><div class="stack" style="margin-top:10px"><div class="field"><label for="rosteradd">Add registered player</label><div class="inl"><select id="rosteradd"><option value="">Choose player…</option>'+players().filter(function(p){return !!p.uid&&ids.indexOf(p.id)<0;}).map(function(p){return '<option value="'+esc(p.id)+'">'+esc(p.name)+'</option>';}).join('')+'</select><button class="btn sm" data-act="rosteradd" data-id="'+esc(d.id)+'">＋ Add</button></div></div><form data-form="sessionguest" class="field"><label for="sessionguestname">Add guest without account</label><div class="inl"><input id="sessionguestname" type="text" maxlength="40" placeholder="Type player name"><button class="btn sm primary" type="submit">＋ Add Guest</button></div></form></div></details>';
    out+='<div class="small muted">Roster:</div>'+(ids.length?ids.map(function(pid){var p=S.players.find(function(x){return x&&x.id===pid;});return '<div class="row sp"><span>'+esc(nameOf(pid))+'</span>'+(canManageSession(d.id)&&(!p||p.uid!==d.adminUid)?'<button class="btn sm danger" data-act="removesessionplayer" data-id="'+esc(d.id)+'" data-pid="'+esc(pid)+'">Remove</button>':'')+'</div>';}).join(''):'<p class="small muted">No players added yet</p>');
-   out+='<button class="btn primary block" data-act="generaterounds" data-id="'+esc(d.id)+'">Generate rounds</button></div>';
-  rounds.forEach(function(r,i){out+='<div class="card stack"><div class="row sp"><b>'+esc(r.name||('Round '+(i+1)))+'</b></div>';
-    if(r.bye&&(Array.isArray(r.bye)?r.bye.length:true))out+='<p class="small muted">Bye / Rest: '+esc((Array.isArray(r.bye)?r.bye:[r.bye]).map(function(x){return sessionPlayerName(x,d);}).join(', '))+'</p>';
+ out+='</div>';if(!rounds.length)out+='<button class="btn primary block" data-act="generaterounds" data-id="'+esc(d.id)+'">Generate rounds</button>';  
+   if(rounds.length){out+='<details class="card"><summary>Session 1 · '+rounds.length+' rounds</summary><div class="stack" style="margin-top:10px">';rounds.forEach(function(r,i){out+='<div class="card stack"><div class="row sp"><b>'+esc(r.name||('Round '+(i+1)))+'</b></div>';
+   if(r.bye&&(Array.isArray(r.bye)?r.bye.length:true))out+='<p class="small muted">Bye / Rest: '+esc((Array.isArray(r.bye)?r.bye:[r.bye]).map(function(x){return sessionPlayerName(x,d);}).join(', '))+'</p>';
     (r.fixtures||[]).forEach(function(f,j){
   var started=f.matchId&&S.matches.some(function(m){return m.id===f.matchId;});
   out+='<div class="card stack"><div class="row sp"><div class="small"><b>Game '+(j+1)+'</b><br>'+
@@ -790,7 +790,7 @@ function roundHtml(d){
   '</div>';
 });                               
 out+='</div>';});
-
+if(rounds.length)out+='</div></details><button class="btn primary block" data-act="generaterounds" data-id="'+esc(d.id)+'">＋ Add Next Round</button>';
   if(ui.editFixture&&ui.editFixture.sid===d.id){
     var es=ui.editFixture,er=rounds.find(function(x){return x.id===es.rid;}),ef=er&&(er.fixtures||[]).find(function(x){return x.id===es.fid;});
     if(ef){
@@ -1418,8 +1418,8 @@ async function joinSession(raw,role){
     case 'rosteradd':{var rd=sessionDoc(id),rs=document.getElementById('rosteradd');if(rd&&canManageSession(id)&&rs&&rs.value){rd.roster=sessionRoster(rd);if(rd.roster.indexOf(rs.value)<0){rd.slots=Array.isArray(rd.slots)?rd.slots:[];var emptySlot=rd.slots.find(function(sl){return sl&&!sl.playerId;});if(!emptySlot){var nextNo=rd.slots.reduce(function(n,sl){return Math.max(n,Number(sl.number)||0);},0)+1;emptySlot={number:nextNo,playerId:null,joinedAt:null};rd.slots.push(emptySlot);}emptySlot.playerId=rs.value;emptySlot.joinedAt=Date.now();rd.roster.push(rs.value);rd.totalPlayers=Math.max(Number(rd.totalPlayers)||0,rd.slots.length);rescheduleSessionAfterRosterChange(rd);}else{ui.err='This player is already in the session.';render();}}break;}
   case 'removesessionplayer':{(async function(){try{var rd=await cloud.api.get('sessions',id);if(!rd)throw new Error('Session not found');var local=sessionDoc(id);if(local)Object.assign(local,rd);else S.sessions.push(rd);if(!canManageSession(id)){ui.err='Only Session Admin can remove players.';render();return;}var pid=b.dataset.pid,pp=S.players.find(function(p){return p&&p.id===pid;});if(!pid||pid===rd.adminPlayerId||(pp&&pp.uid===rd.adminUid)){ui.err='Session Admin cannot be removed.';render();return;}if(!window.confirm('Remove this player from the session?'))return;rd.roster=sessionRoster(rd).filter(function(x){return x!==pid;});(rd.slots||[]).forEach(function(sl){if(sl&&sl.playerId===pid){sl.playerId=null;sl.joinedAt=null;}});if(pp&&pp.uid){delete (rd.members||{})[pp.uid];rd.memberUids=(rd.memberUids||[]).filter(function(x){return x!==pp.uid;});if(rd.roleRequests)delete rd.roleRequests[pp.uid];if(rd.refereeUid===pp.uid)rd.refereeUid=null;}if(rd.guestPlayers&&rd.guestPlayers[pid])delete rd.guestPlayers[pid];rescheduleSessionAfterRosterChange(rd);}catch(e){ui.err='Could not remove player. Please try again.';render();}})();break;}
 case 'exitsession':{(async function(){try{var ed=await cloud.api.get('sessions',id);if(!ed)throw new Error('Session not found');var local=sessionDoc(id);if(local)Object.assign(local,ed);else S.sessions.push(ed);var myp=S.players.find(function(p){return p&&p.uid===meId();});if(!myp||ed.adminUid===meId()||!ed.members||!ed.members[meId()]){ui.err='You cannot exit this session.';render();return;}ed.roster=sessionRoster(ed).filter(function(x){return x!==myp.id;});(ed.slots||[]).forEach(function(sl){if(sl&&sl.playerId===myp.id){sl.playerId=null;sl.joinedAt=null;}});delete ed.members[meId()];ed.memberUids=(ed.memberUids||[]).filter(function(x){return x!==meId();});if(ed.roleRequests)delete ed.roleRequests[meId()];if(ed.refereeUid===meId())ed.refereeUid=null;rescheduleSessionAfterRosterChange(ed);ui.sid=null;ui.view='list';ui.err='You have exited the session.';render();}catch(e){ui.err='Could not exit session. Please try again.';render();}})();break;} 
-     case 'updateslots':{var ud=sessionDoc(id),uiEl=document.getElementById('sessionTotalPlayers');if(ud&&canManageSession(id)&&uiEl){var wanted=Math.max(ud.matchType==='s'?2:4,Math.min(100,parseInt(uiEl.value,10)||0)),arr=Array.isArray(ud.slots)?ud.slots:[],filled=arr.filter(function(sl){return sl&&sl.playerId;}).length;if(wanted<filled){ui.err='Total slots cannot be less than the number of players already joined.';render();break;}if(wanted>arr.length){for(var si=arr.length;si<wanted;si++)arr.push({number:si+1,playerId:null,joinedAt:null});}else if(wanted<arr.length)arr=arr.slice(0,wanted);var grew=wanted>ud.totalPlayers;ud.slots=arr;ud.totalPlayers=wanted;saveSessionDoc(ud);if(grew)roundRobin(ud);ui.err='Player slots updated.';render();}break;}
-    case 'generaterounds':{var gd=sessionDoc(id);if(gd&&canManageSession(id))roundRobin(gd);break;}
+case 'updateslots':{var ud=sessionDoc(id),uiEl=document.getElementById('sessionTotalPlayers');if(ud&&canManageSession(id)&&uiEl){var wanted=Math.max(ud.matchType==='s'?2:4,Math.min(100,parseInt(uiEl.value,10)||0)),arr=Array.isArray(ud.slots)?ud.slots:[],filled=arr.filter(function(sl){return sl&&sl.playerId;}).length;if(wanted<filled){ui.err='Total slots cannot be less than the number of players already joined.';render();break;}if(wanted>arr.length){for(var si=arr.length;si<wanted;si++)arr.push({number:si+1,playerId:null,joinedAt:null});}else if(wanted<arr.length)arr=arr.slice(0,wanted);ud.slots=arr;ud.totalPlayers=wanted;saveSessionDoc(ud);ui.err='Player slots updated. Generate rounds when players are ready.';render();}break;}     
+     case 'generaterounds':{var gd=sessionDoc(id);if(gd&&canManageSession(id))roundRobin(gd);break;}
     case 'addrround':{var ad=sessionDoc(id);if(ad&&canManageSession(id)){ad.rounds=ad.rounds||[];ad.rounds.push({id:uid(),name:'Round '+(ad.rounds.length+1),fixtures:[],bye:[]});saveSessionDoc(ad);render();}break;}
    case 'startfixture':{showFixtureSetup(id,b.dataset.rid,b.dataset.fid);break;}
 case 'fixturecancel':ui.fixtureSetup=null;render();break;
