@@ -1,0 +1,19 @@
+{
+  "name": "smashx",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SmashX badminton scoring app - shared web source for browser and Android",
+  "scripts": {
+    "copy:web": "node scripts/copy-web-assets.mjs",
+    "android:generate": "npm run copy:web && cap add android",
+    "android:sync": "npm run copy:web && cap sync android",
+    "android:debug": "npm run android:sync && cd android && ./gradlew assembleDebug"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.6.2",
+    "@capacitor/core": "8.6.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.6.2"
+  }
+}
