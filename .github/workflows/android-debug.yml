@@ -2,6 +2,19 @@ name: SmashX Android Debug Build
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'index.html'
+      - 'manifest.json'
+      - 'sw.js'
+      - 'icon-*.png'
+      - 'logo*'
+      - 'package.json'
+      - 'capacitor.config.json'
+      - 'scripts/**'
+      - '.github/workflows/android-debug.yml'
   push:
     branches:
       - main
