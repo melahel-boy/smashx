@@ -10,6 +10,7 @@ on:
       - 'sw.js'
       - 'icon-*.png'
       - 'logo*'
+      - 'google-services.json'
       - '.github/workflows/android-apk.yml'
   workflow_dispatch:
 
@@ -38,6 +39,7 @@ jobs:
         run: |
           mkdir -p www assets
           cp index.html manifest.json sw.js icon-192.png icon-512.png icon-maskable-512.png logo-mark.png logo.jpg www/
+          test -f google-services.json || (echo 'Missing google-services.json in repository root' && exit 1)
           npm init -y
           npm install --save-exact @capacitor/core@6.2.1
           npm install --save-dev --save-exact @capacitor/cli@6.2.1
@@ -55,6 +57,20 @@ jobs:
           npx cap add android
           npx capacitor-assets generate --android
           npx cap sync android
+          cp google-services.json android/app/google-services.json
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('android/build.gradle')
+          s = p.read_text()
+          if 'com.google.gms:google-services:' not in s:
+              s = s.replace('dependencies {', 'dependencies {\n        classpath \'com.google.gms:google-services:4.4.2\'', 1)
+          p.write_text(s)
+          app = Path('android/app/build.gradle')
+          a = app.read_text()
+          if 'com.google.gms.google-services' not in a:
+              a += '\napply plugin: \'com.google.gms.google-services\'\n'
+          app.write_text(a)
+          PY
 
       - name: Set Android minimum SDK for Google Play
         run: |
@@ -72,9 +88,9 @@ jobs:
           a = app_gradle.read_text()
           a, version_count = re.subn(r'(versionCode\s+)\d+', r'\g<1>2', a, count=1)
           if version_count != 1:
-              raise SystemExit("Could not set Android versionCode to 2")
+              raise SystemExit("Could not set Android versionCode to 3")
           app_gradle.write_text(a)
-          print("Configured minSdkVersion=24, compileSdkVersion=36, targetSdkVersion=36, versionCode=2")
+          print("Configured minSdkVersion=24, compileSdkVersion=36, targetSdkVersion=36, versionCode=3")
           PY
 
       - name: Upgrade Android Gradle tooling for API 36
