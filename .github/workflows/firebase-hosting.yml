@@ -30,7 +30,6 @@ jobs:
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: projects/726099778079/locations/global/workloadIdentityPools/smashx-github-pool/providers/github
-          service_account: firebase-adminsdk-fbsvc@smashx-pro2026.iam.gserviceaccount.com
 
       - name: Install Firebase CLI
         run: npm install --global firebase-tools@15.22.3
