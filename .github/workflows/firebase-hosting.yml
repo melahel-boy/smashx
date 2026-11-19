@@ -33,7 +33,7 @@ jobs:
           service_account: firebase-adminsdk-fbsvc@smashx-pro2026.iam.gserviceaccount.com
 
       - name: Install Firebase CLI
-        run: npm install --global firebase-tools
+        run: npm install --global firebase-tools@15.22.1
 
       - name: Deploy to Firebase Hosting
-        run: firebase deploy --only hosting --project smashx-pro2026
+        run: firebase deploy --only hosting --project smashx-pro2026 --non-interactive
