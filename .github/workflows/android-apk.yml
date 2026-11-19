@@ -34,14 +34,16 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Prepare Android web app
+      - name: Prepare Android web app and branded icon
         run: |
-          mkdir -p www
+          mkdir -p www assets
           cp index.html manifest.json sw.js icon-192.png icon-512.png icon-maskable-512.png logo-mark.png logo.jpg www/
           npm init -y
           npm install --save-exact @capacitor/core@6.2.1
           npm install --save-dev --save-exact @capacitor/cli@6.2.1
           npm install --save-exact @capacitor/android@6.2.1
+          npm install --save-dev --save-exact @capacitor/assets@3.0.5 sharp
+          node -e "require('sharp')('icon-512.png').resize(1024,1024,{fit:'contain',background:{r:13,g:23,b:20,alpha:1}}).png().toFile('assets/icon-only.png')"
           cat > capacitor.config.json <<'EOF'
           {
             "appId": "com.smashx.app",
@@ -51,6 +53,7 @@ jobs:
           }
           EOF
           npx cap add android
+          npx capacitor-assets generate --android
           npx cap sync android
 
       - name: Build debug APK
