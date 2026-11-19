@@ -46,7 +46,7 @@ jobs:
           node -e "require('sharp')('icon-512.png').resize(1024,1024,{fit:'contain',background:{r:13,g:23,b:20,alpha:1}}).png().toFile('assets/icon-only.png')"
           cat > capacitor.config.json <<'EOF'
           {
-            "appId": "com.smashx.app",
+            "appId": "com.smashx.badmintonscorer",
             "appName": "SmashX",
             "webDir": "www",
             "bundledWebRuntime": false
@@ -63,7 +63,7 @@ jobs:
           import re
           p = Path("android/variables.gradle")
           s = p.read_text()
-          s, count = re.subn(r'(minSdkVersion\s*=\s*)\d+', r'\g<1>24', s, count=1)
+          s, count = re.subn(r'(minSdkVersion\\s*=\\s*)\\d+', r'\\g<1>24', s, count=1)
           if count != 1:
               raise SystemExit("Could not find minSdkVersion in android/variables.gradle")
           p.write_text(s)
@@ -111,8 +111,8 @@ jobs:
               }
           '''
           if "signingConfigs {" not in s:
-              s = s.replace("    buildTypes {", signing + "\n    buildTypes {", 1)
-          s = s.replace("    buildTypes {\n        release {", "    buildTypes {\n        release {\n            signingConfig signingConfigs.release", 1)
+              s = s.replace("    buildTypes {", signing + "\\n    buildTypes {", 1)
+          s = s.replace("    buildTypes {\\n        release {", "    buildTypes {\\n        release {\\n            signingConfig signingConfigs.release", 1)
           p.write_text(s)
           PY
 
