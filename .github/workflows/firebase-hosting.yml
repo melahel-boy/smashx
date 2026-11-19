@@ -10,6 +10,10 @@ on:
       - '.github/workflows/firebase-hosting.yml'
   workflow_dispatch:
 
+permissions:
+  contents: read
+  id-token: write
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -22,10 +26,11 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Authenticate to Google Cloud
+      - name: Authenticate to Google Cloud with Workload Identity Federation
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_SMASHX_PRO2026 }}
+          workload_identity_provider: projects/726099778079/locations/global/workloadIdentityPools/smashx-github-pool/providers/github
+          service_account: firebase-adminsdk-fbsvc@smashx-pro2026.iam.gserviceaccount.com
 
       - name: Install Firebase CLI
         run: npm install --global firebase-tools
