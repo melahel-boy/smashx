@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "726099778079",
+    "project_id": "smashx-pro2026",
+    "storage_bucket": "smashx-pro2026.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:726099778079:android:a4179e47a0b17713e4132a",
+        "android_client_info": {
+          "package_name": "com.smashx.badmintonscorer"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "726099778079-c15igr0m2efu6ea9q5b4ekpk7032rsii.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCHWFZQc-KfNDjtL5qkotz3CJzIruh9C9A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "726099778079-c15igr0m2efu6ea9q5b4ekpk7032rsii.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
