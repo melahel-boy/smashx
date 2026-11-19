@@ -1,13 +1,6 @@
 name: Deploy SmashX to Firebase Hosting
 
 on:
-  push:
-    branches:
-      - main
-      - feature/account-deletion-restore
-    paths:
-      - '**'
-      - '.github/workflows/firebase-hosting.yml'
   workflow_dispatch:
 
 permissions:
