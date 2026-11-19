@@ -24,7 +24,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24.18.0'
 
       - name: Authenticate to Google Cloud with Workload Identity Federation
         uses: google-github-actions/auth@v2
@@ -33,7 +33,7 @@ jobs:
           service_account: firebase-adminsdk-fbsvc@smashx-pro2026.iam.gserviceaccount.com
 
       - name: Install Firebase CLI
-        run: npm install --global firebase-tools@15.22.1
+        run: npm install --global firebase-tools@15.22.3
 
       - name: Deploy to Firebase Hosting
         run: firebase deploy --only hosting --project smashx-pro2026 --non-interactive
