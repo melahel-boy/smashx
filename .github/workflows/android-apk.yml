@@ -63,11 +63,32 @@ jobs:
           import re
           p = Path("android/variables.gradle")
           s = p.read_text()
-          s, count = re.subn(r'(minSdkVersion\s*=\s*)\d+', r'\g<1>24', s, count=1)
-          if count != 1:
-              raise SystemExit("Could not find minSdkVersion in android/variables.gradle")
+          for key, value in (("minSdkVersion", 24), ("compileSdkVersion", 36), ("targetSdkVersion", 36)):
+              s, count = re.subn(rf'({key}\s*=\s*)\d+', rf'\g<1>{value}', s, count=1)
+              if count != 1:
+                  raise SystemExit(f"Could not find {key} in android/variables.gradle")
           p.write_text(s)
-          print("Configured minSdkVersion = 24")
+          print("Configured minSdkVersion=24, compileSdkVersion=36, targetSdkVersion=36")
+          PY
+
+      - name: Upgrade Android Gradle tooling for API 36
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          build = Path("android/build.gradle")
+          s = build.read_text()
+          s, count = re.subn(r"com\.android\.tools\.build:gradle:[0-9.]+", "com.android.tools.build:gradle:8.9.1", s, count=1)
+          if count != 1:
+              raise SystemExit("Could not update Android Gradle Plugin version")
+          build.write_text(s)
+          wrapper = Path("android/gradle/wrapper/gradle-wrapper.properties")
+          w = wrapper.read_text()
+          w, count = re.subn(r"gradle-[0-9.]+-(?:all|bin)\.zip", "gradle-8.11.1-all.zip", w, count=1)
+          if count != 1:
+              raise SystemExit("Could not update Gradle wrapper version")
+          wrapper.write_text(w)
+          print("Configured Android Gradle Plugin 8.9.1 and Gradle 8.11.1")
           PY
 
       - name: Build debug APK
