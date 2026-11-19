@@ -56,6 +56,20 @@ jobs:
           npx capacitor-assets generate --android
           npx cap sync android
 
+      - name: Set Android minimum SDK for Google Play
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p = Path("android/variables.gradle")
+          s = p.read_text()
+          s, count = re.subn(r'(minSdkVersion\s*=\s*)\d+', r'\g<1>24', s, count=1)
+          if count != 1:
+              raise SystemExit("Could not find minSdkVersion in android/variables.gradle")
+          p.write_text(s)
+          print("Configured minSdkVersion = 24")
+          PY
+
       - name: Build debug APK
         run: |
           cd android
