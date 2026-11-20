@@ -1,0 +1,14 @@
+{
+  "appId": "com.smashx.badmintonscorer",
+  "appName": "SmashX",
+  "webDir": "www",
+  "bundledWebRuntime": false,
+  "plugins": {
+    "FirebaseAuthentication": {
+      "providers": [
+        "google.com"
+      ],
+      "skipNativeAuth": true
+    }
+  }
+}
