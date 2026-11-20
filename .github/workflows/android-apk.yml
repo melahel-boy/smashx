@@ -91,17 +91,19 @@ jobs:
               else:
                   tag = tag[:-1] + ' ' + key + '="' + value + '">'
           manifest.write_text(manifest_text[:start] + tag + manifest_text[end + 1:])
-          # Explicitly clear immersive/full-screen flags so Android's notification bar remains visible.
-          main_activity = Path("android/app/src/main/java/com/smashx/badmintonscorer/MainActivity.java")
-          if not main_activity.exists():
-              raise SystemExit("Generated Android MainActivity.java was not found")
-                    java = """package com.smashx.badmintonscorer;
-          
+          icon = Path("android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png")
+          if not icon.exists():
+              raise SystemExit("Branded launcher icon was not generated")
+          print("Google native auth enabled; branded launcher icon verified.")
+          PY
+          cat > android/app/src/main/java/com/smashx/badmintonscorer/MainActivity.java <<'EOF'
+          package com.smashx.badmintonscorer;
+
           import com.getcapacitor.BridgeActivity;
           import android.os.Bundle;
           import android.view.WindowManager;
           import androidx.core.view.WindowCompat;
-          
+
           public class MainActivity extends BridgeActivity {
               @Override
               public void onCreate(Bundle savedInstanceState) {
@@ -110,13 +112,7 @@ jobs:
                   WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
               }
           }
-          """
-          main_activity.write_text(java)
-                    icon = Path("android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png")
-          if not icon.exists():
-              raise SystemExit("Branded launcher icon was not generated")
-          print("Google native auth enabled; branded launcher icon verified.")
-          PY
+          EOF
           npx cap sync android
           cp google-services.json android/app/google-services.json
           python3 - <<'PY'
