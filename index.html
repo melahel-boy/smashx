@@ -349,12 +349,13 @@ function sessionForFirestore(d){
   return out;
 }
 function authMsg(e){
-  var c=(e&&e.code)||'';
+  var c=(e&&e.code)||'',m=(e&&e.message)||'';
   if(c==='auth/popup-closed-by-user'||c==='auth/cancelled-popup-request')return 'Sign-in was cancelled. Tap the button to try again.';
   if(c==='auth/popup-blocked')return 'Your phone blocked the sign-in window. Allow pop-ups for this page and try again.';
   if(c==='auth/unauthorized-domain')return 'This web address is not approved yet in Firebase. Add it under Authentication, Settings, Authorized domains.';
   if(c==='auth/network-request-failed')return 'No internet. Connect and try again.';
-  return 'Sign-in did not work. Check your internet and try again.';
+  if(c)return 'Google sign-in error ('+c+'): '+m;
+  return m?'Google sign-in failed: '+m:'Google sign-in did not finish. Please try again.';
 }
 function syncText(){
   if(!cloud.user)return '';
@@ -427,14 +428,18 @@ async function bootCloud(){
       onAuth:function(cb){return Au.onAuthStateChanged(auth,cb);},
       signIn:async function(){
         if(window.Capacitor&&typeof window.Capacitor.isNativePlatform==='function'&&window.Capacitor.isNativePlatform()){
-          var nativeModule=await import('https://esm.sh/@capacitor-firebase/authentication@6.3.1?external=@capacitor/core');
-          var nativeResult=await nativeModule.FirebaseAuthentication.signInWithGoogle({skipNativeAuth:true});
+          var nativeModule=await withTimeout(import('https://esm.sh/@capacitor-firebase/authentication@6.3.1?external=@capacitor/core'),20000);
+          if(!nativeModule.FirebaseAuthentication||typeof nativeModule.FirebaseAuthentication.signInWithGoogle!=='function')throw new Error('Android Google sign-in plugin did not load. Check internet access and rebuild the Android app.');
+          var nativeResult=await withTimeout(nativeModule.FirebaseAuthentication.signInWithGoogle({skipNativeAuth:true}),45000);
           var idToken=nativeResult&&nativeResult.credential&&nativeResult.credential.idToken;
-          if(!idToken)throw new Error('Google sign-in did not return an ID token. Check the Firebase Android SHA-1 and Google OAuth configuration.');
+          if(!idToken){
+            var resultKeys=nativeResult&&typeof nativeResult==='object'?Object.keys(nativeResult).join(', '):'no result';
+            throw new Error('Google account was selected, but Android returned no ID token (result: '+resultKeys+'). Check the Firebase Android SHA-1 and Google OAuth client.');
+          }
           var credential=Au.GoogleAuthProvider.credential(idToken);
-          return Au.signInWithCredential(auth,credential);
+          return withTimeout(Au.signInWithCredential(auth,credential),30000);
         }
-        var p=new Au.GoogleAuthProvider();p.setCustomParameters({prompt:'select_account'});return Au.signInWithPopup(auth,p);
+        var p=new Au.GoogleAuthProvider();p.setCustomParameters({prompt:'select_account'});return withTimeout(Au.signInWithPopup(auth,p),45000);
       },
       signOut:function(){return Au.signOut(auth);},
       watch:function(col,next,err){
@@ -1229,7 +1234,7 @@ function viewRules(){return '<div class="settings-backdrop" data-act="rulesclose
 function viewSettings(){var colors=[['green','#35C79A'],['blue','#4385F5'],['purple','#9B70E8'],['orange','#E58A35'],['pink','#E56B9D'],['teal','#21A6A0']];return '<div class="settings-backdrop" data-act="settingsclose"><div class="settings-panel stack" role="dialog" aria-modal="true" aria-label="Settings"><div class="row sp"><h2 style="margin:0">Settings</h2><button class="iconbtn" data-act="settingsclose" aria-label="Close settings">×</button></div><div class="card stack"><b>Appearance</b><div class="theme-choice"><button class="btn '+(appPrefs.theme==='dark'?'on':'')+'" data-act="theme" data-value="dark">☾ Dark</button><button class="btn '+(appPrefs.theme==='light'?'on':'')+'" data-act="theme" data-value="light">☀ Light</button></div></div><div class="card stack"><b>Accent colour</b><p class="small muted">Changes app highlights only. Team A stays blue and Team B stays orange.</p><div class="theme-swatches">'+colors.map(function(x){return '<button class="theme-swatch" data-act="accent" data-value="'+x[0]+'" aria-label="'+x[0]+'" aria-pressed="'+(appPrefs.accent===x[0])+'" style="background:'+x[1]+'"></button>';}).join('')+'</div></div><div class="card stack"><b>Game preferences</b><label class="row sp"><span>Sound</span><input type="checkbox" id="pref-sound" '+(appPrefs.sound?'checked':'')+'></label><label class="row sp"><span>Vibration</span><input type="checkbox" id="pref-vibrate" '+(appPrefs.vibrate?'checked':'')+'></label><label class="row sp"><span>Keep screen awake</span><input type="checkbox" id="pref-awake" '+(appPrefs.awake?'checked':'')+'></label></div><div class="card stack"><b>Follow SmashX</b><a href="https://www.instagram.com/smashx_app" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700;text-decoration:none">◎ Instagram · @smashx_app ↗</a></div>'+'<button class="btn block" data-act="rulesopen">🏸 Badminton Rules</button>'+(ui.auth==='in'?'<div class="card stack"><span class="small muted">Signed in as '+esc(cloud.user.name)+'</span>'+(isDefaultAdmin()?'':'<button class="btn block" data-act="requestdeletion">Delete My Data</button>')+'<button class="btn sm" data-act="signout">Sign out</button></div>':'<div class="card"><button class="btn primary block" data-act="signin">Sign in with Google</button></div>')+adminRestorePanel()+'</div></div>';}
 
 function viewAuth(){
-  if(ui.auth==='loading')return '<div class="card empty" style="margin-top:12px"><b>Loading</b><p class="muted">'+(ui.slow?'This is taking longer than usual. Check your internet, then tap Refresh app.':'Getting things ready.')+'</p>'+(ui.slow?fixBtn():'')+'</div>';
+  if(ui.auth==='loading'&&!ui.err)return '<div class="card empty" style="margin-top:12px"><b>Loading</b><p class="muted">'+(ui.slow?'This is taking longer than usual. Check your internet, then tap Refresh app.':'Getting things ready.')+'</p>'+(ui.slow?fixBtn():'')+'</div>';
   if(ui.auth==='setup')return '<div class="card empty" style="margin-top:12px"><b>Almost there</b><p class="muted">This app is not connected to its Google back office yet.</p></div>';
   return '<div class="card empty" style="margin-top:12px"><img class="hero" src="logo.jpg" alt="SmashX" width="800" height="436"><b>Keep score. Know your game.</b><p class="muted">Sign in with Google. Every match is backed up and your own stats follow you into every game.</p><div style="margin-top:12px;width:100%"><button class="btn primary block" data-act="signin">Sign in with Google</button></div>'+(ui.err?'<p class="err-msg" style="margin-top:8px">'+esc(ui.err)+'</p>':'')+fixBtn()+'</div>';
 }
@@ -1486,7 +1491,16 @@ async function joinSession(raw,role){
     case 'simpleundo':simpleUndo();break;case 'simplenext':simpleNext();break;case 'simplereset':if(window.confirm('Reset the score and game wins?'))simpleReset();break;
     case 'accent':appPrefs.accent=b.dataset.value||'green';savePrefs();applyAccent();if(appPrefs.awake)keepAwake();render();break;
     case 'hardreload':hardReload();break;
-    case 'signin':ui.err='';render();cloud.api.signIn().catch(function(e){ui.err=authMsg(e);render();});break;
+    case 'signin':{
+      if(!cloud.api||!cloud.api.signIn){ui.auth='out';ui.err='Google sign-in is not ready. Refresh the app and try again.';render();break;}
+      ui.err='';ui.auth='out';render();
+      cloud.api.signIn().catch(function(e){
+        console.error('SmashX Google sign-in failed:',e);
+        if(!cloud.user)ui.auth='out';
+        ui.err=authMsg(e);render();
+      });
+      break;
+    }
     case 'signout':cloud.api.signOut().catch(function(){});break;
     case 'requestdeletion':if(!window.confirm('Delete My Data? Your account will be blocked now. Your data will be kept temporarily for possible restoration.'))break;requestAccountDeletion().catch(function(){ui.err='Could not submit the deletion request. Please try again.';render();});break;
     case 'restoreaccount':if(!isDefaultAdmin())break;if(!window.confirm('Restore this original SmashX account?'))break;restoreAccount(id).catch(function(){ui.err='Could not restore this account. Check Firebase Rules.';render();});break;
