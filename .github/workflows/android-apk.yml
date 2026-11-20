@@ -1,4 +1,4 @@
-name: Build SmashX Testing APK
+name: Build SmashX Signed Testing APK
 
 on:
   push:
@@ -148,17 +148,65 @@ jobs:
           print("Configured Android Gradle Plugin 8.9.1 and Gradle 8.11.1")
           PY
 
-      - name: Build debug APK
+      - name: Restore existing SmashX upload keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          test -n "$KEYSTORE_BASE64" || (echo "ANDROID_KEYSTORE_BASE64 secret is missing" && exit 1)
+          mkdir -p android/app
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > android/app/smashx-upload-key.jks
+          test -s android/app/smashx-upload-key.jks
+          keytool -list -keystore android/app/smashx-upload-key.jks -storepass "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" -alias "${{ secrets.ANDROID_KEY_ALIAS }}" >/dev/null
+          echo "Existing upload keystore restored and alias verified."
+
+      - name: Configure release signing
+        env:
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          test -n "$STORE_PASSWORD" && test -n "$KEY_ALIAS" && test -n "$KEY_PASSWORD"
+          cat >> android/app/build.gradle <<'EOF'
+
+          android {
+              signingConfigs {
+                  release {
+                      storeFile file("smashx-upload-key.jks")
+                      storePassword System.getenv("STORE_PASSWORD")
+                      keyAlias System.getenv("KEY_ALIAS")
+                      keyPassword System.getenv("KEY_PASSWORD")
+                  }
+              }
+              buildTypes {
+                  release {
+                      signingConfig signingConfigs.release
+                      minifyEnabled false
+                  }
+              }
+          }
+          EOF
+
+      - name: Build signed release APK
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleRelease
 
-      - name: Upload testing APK
+      - name: Verify APK signature and version
+        run: |
+          APK="android/app/build/outputs/apk/release/app-release.apk"
+          test -s "$APK"
+          apksigner verify --verbose "$APK"
+          apksigner verify --print-certs "$APK" | tee /tmp/apk-cert.txt
+          grep -qi "88:1e:c1:63:0b:0c:90:06:37:d6:2d:2f:46:46:7f:ce:ec:49:c1:fc" /tmp/apk-cert.txt
+          echo "Verified APK is signed with the existing SmashX upload certificate."
+          "$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)/aapt" dump badging "$APK" | grep -E "package:|application-label:"
+
+      - name: Upload signed testing APK
         uses: actions/upload-artifact@v4
         with:
-          name: SmashX-Android-Testing-APK
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: SmashX-Android-Signed-Testing-APK
+          path: android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
           retention-days: 14
 
