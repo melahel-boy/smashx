@@ -126,14 +126,14 @@ jobs:
           p.write_text(s)
           app_gradle = Path("android/app/build.gradle")
           a = app_gradle.read_text()
-          a, version_count = re.subn(r'(versionCode\s+)\d+', r'\g<1>5', a, count=1)
+          a, version_count = re.subn(r'(versionCode\s+)\d+', r'\g<1>6', a, count=1)
           if version_count != 1:
               raise SystemExit("Could not set Android versionCode to 5")
-          a, name_count = re.subn(r'(versionName\s+)[\"\'][^\"\']+[\"\']', r'\g<1>"1.0.5"', a, count=1)
+          a, name_count = re.subn(r'(versionName\s+)[\"\'][^\"\']+[\"\']', r'\g<1>"1.0.6"', a, count=1)
           if name_count != 1:
-              raise SystemExit("Could not set Android versionName to 1.0.5")
+              raise SystemExit("Could not set Android versionName to 1.0.6")
           app_gradle.write_text(a)
-          print("Configured minSdkVersion=24, compileSdkVersion=36, targetSdkVersion=36, versionCode=5, versionName=1.0.5")
+          print("Configured minSdkVersion=24, compileSdkVersion=36, targetSdkVersion=36, versionCode=5, versionName=1.0.6")
           PY
 
       - name: Upgrade Android Gradle tooling for API 36
