@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - feature/account-deletion-restore
     paths:
       - 'index.html'
       - 'manifest.json'
