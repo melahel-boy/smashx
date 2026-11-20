@@ -200,11 +200,13 @@ jobs:
         run: |
           APK="android/app/build/outputs/apk/release/app-release.apk"
           test -s "$APK"
-          apksigner verify --verbose "$APK"
-          apksigner verify --print-certs "$APK" | tee /tmp/apk-cert.txt
+          BUILD_TOOLS="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)"
+          test -x "$BUILD_TOOLS/apksigner"
+          "$BUILD_TOOLS/apksigner" verify --verbose "$APK"
+          "$BUILD_TOOLS/apksigner" verify --print-certs "$APK" | tee /tmp/apk-cert.txt
           grep -qi "88:1e:c1:63:0b:0c:90:06:37:d6:2d:2f:46:46:7f:ce:ec:49:c1:fc" /tmp/apk-cert.txt
           echo "Verified APK is signed with the existing SmashX upload certificate."
-          "$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)/aapt" dump badging "$APK" | grep -E "package:|application-label:"
+          "$BUILD_TOOLS/aapt" dump badging "$APK" | grep -E "package:|application-label:"
 
       - name: Upload signed testing APK
         uses: actions/upload-artifact@v4
