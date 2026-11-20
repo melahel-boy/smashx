@@ -200,8 +200,10 @@ jobs:
         run: |
           APK="android/app/build/outputs/apk/release/app-release.apk"
           test -s "$APK"
-          BUILD_TOOLS="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)"
-          test -x "$BUILD_TOOLS/apksigner"
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          BUILD_TOOLS="$(find "$SDK_ROOT/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          test -n "$BUILD_TOOLS" || (echo "Android build-tools directory was not found under $SDK_ROOT" && exit 1)
+          test -x "$BUILD_TOOLS/apksigner" || (echo "apksigner is missing from $BUILD_TOOLS" && exit 1)
           "$BUILD_TOOLS/apksigner" verify --verbose "$APK"
           "$BUILD_TOOLS/apksigner" verify --print-certs "$APK" | tee /tmp/apk-cert.txt
           grep -qi "88:1e:c1:63:0b:0c:90:06:37:d6:2d:2f:46:46:7f:ce:ec:49:c1:fc" /tmp/apk-cert.txt
