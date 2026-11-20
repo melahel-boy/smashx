@@ -71,7 +71,7 @@ jobs:
           if "rgcfaIncludeGoogle" not in text:
               if "ext {" not in text:
                   raise SystemExit("Could not find ext block in android/variables.gradle")
-              text = text.replace("ext {", "ext {\n    rgcfaIncludeGoogle = true\\n    androidxCredentialsVersion = '1.3.0'", 1)
+              text = text.replace("ext {", "ext {\n    rgcfaIncludeGoogle = true\n    androidxCredentialsVersion = '1.3.0'", 1)
               variables.write_text(text)
           manifest = Path("android/app/src/main/AndroidManifest.xml")
           tree = ET.parse(manifest)
