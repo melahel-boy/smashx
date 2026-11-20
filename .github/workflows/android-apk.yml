@@ -95,24 +95,24 @@ jobs:
           main_activity = Path("android/app/src/main/java/com/smashx/badmintonscorer/MainActivity.java")
           if not main_activity.exists():
               raise SystemExit("Generated Android MainActivity.java was not found")
-          java = """package com.smashx.badmintonscorer;
-
-import com.getcapacitor.BridgeActivity;
-import android.os.Bundle;
-import android.view.WindowManager;
-import androidx.core.view.WindowCompat;
-
-public class MainActivity extends BridgeActivity {
-    @Override
-    public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
-        WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
-    }
-}
-"""
+                    java = """package com.smashx.badmintonscorer;
+          
+          import com.getcapacitor.BridgeActivity;
+          import android.os.Bundle;
+          import android.view.WindowManager;
+          import androidx.core.view.WindowCompat;
+          
+          public class MainActivity extends BridgeActivity {
+              @Override
+              public void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  getWindow().clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+                  WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
+              }
+          }
+          """
           main_activity.write_text(java)
-          icon = Path("android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png")
+                    icon = Path("android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png")
           if not icon.exists():
               raise SystemExit("Branded launcher icon was not generated")
           print("Google native auth enabled; branded launcher icon verified.")
