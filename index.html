@@ -953,7 +953,7 @@ function viewSession(){
     '<h2>'+esc(g.venue)+'</h2><p class="small muted" style="margin:-2px 0 8px">'+esc(sessionDateTime(g))+' · '+'Private'+' · '+g.games.length+' games</p>';
 if(ui.fixtureSetup&&ui.fixtureSetup.sid===g.sid){var fs=ui.fixtureSetup,fr=(d.rounds||[]).find(function(x){return x.id===fs.rid;}),ff=fr&&(fr.fixtures||[]).find(function(x){return x.id===fs.fid;}),tt=ff&&ff.teams||[[],[]],all=(tt[0]||[]).concat(tt[1]||[]),st=(tt[0]||[]).indexOf(fs.serverId)>=0?0:1,opp=tt[st===0?1:0]||[],so=all.map(function(pid){return '<option value="'+esc(pid)+'"'+(pid===fs.serverId?' selected':'')+'>'+esc(sessionPlayerName(pid,d))+'</option>';}).join(''),ro=opp.map(function(pid){return '<option value="'+esc(pid)+'"'+(pid===fs.receiverId?' selected':'')+'>'+esc(sessionPlayerName(pid,d))+'</option>';}).join('');return '<div class="row sp"><button class="btn sm" data-act="fixturecancel">← Back</button></div><h2>Game Setup</h2><p class="small muted">Select the first Server and Receiver before starting this game.</p><form data-form="fixture-start" class="card stack"><div class="field"><label for="fixture-server">First Server</label><select id="fixture-server">'+so+'</select></div><div class="field"><label for="fixture-receiver">First Receiver</label><select id="fixture-receiver">'+ro+'</select></div><button class="btn primary block" type="submit">Start Game</button><button class="btn block" type="button" data-act="fixturecancel">Cancel</button></form>';} 
    
-   if(!isMember(g.sid))h+='<div class="card stack"><p class="small">Choose your role to join this session.</p><form data-form="join" class="stack"><input type="text" id="joinid" value="'+esc(g.sid)+'" hidden><div class="inl"><select id="joinrole"><option value="player">Player</option><option value="refereeRequest">Referee (request approval)</option><option value="spectator">Spectator</option></select><button class="btn primary" type="submit">Join this session</button></div></form></div>';
+   if(!isMember(g.sid))h+='<div class="card stack"><p class="small">Choose your role to join this session.</p><form data-form="join" class="stack"><input type="text" id="joinid" value="'+esc(g.sid)+'" hidden><div class="inl"><select id="joinrole"><option value="player">Player</option><option value="refereeRequest">Referee (request approval)</option><option value="spectator">Spectator</option></select><button class="btn primary" type="submit">Join this session</button></div>'+(ui.joinError?'<p class="err-msg">'+esc(ui.joinError)+'</p>':'')+'</form></div>';
   else h+='<div class="card stack"><div class="row sp"><span class="small muted">Session ID: <b>'+esc(g.sid)+'</b></span><button class="btn sm" data-act="copylink" data-id="'+esc(g.sid)+'">Join Link</button></div>'+
     (canManageSession(g.sid)?'<div class="field"><label for="refereeuid">Appoint / change Referee</label><div class="inl"><select id="refereeuid"><option value="">No Referee</option>'+Object.keys(d.members||{}).filter(function(uid){return uid!==d.adminUid&&d.members[uid]!=='refereeRequest';}).map(function(uid){var p=S.players.find(function(x){return x.uid===uid;});return '<option value="'+esc(uid)+'"'+(d.refereeUid===uid?' selected':'')+'>'+(p?esc(p.name):'Member')+'</option>';}).join('')+'</select><button class="btn" data-act="setref" data-id="'+esc(g.sid)+'">Save Referee</button></div></div>' : '')+
     (d.roleRequests&&Object.keys(d.roleRequests).length&&canManageSession(g.sid)?'<p class="small muted">Referee requests: '+Object.keys(d.roleRequests).length+'</p>'+Object.keys(d.roleRequests).map(function(uid){var p=S.players.find(function(x){return x.uid===uid;});return '<button class="btn sm" data-act="approveref" data-id="'+esc(g.sid)+'" data-uid="'+esc(uid)+'">Approve '+(p?esc(p.name):'member')+' as Referee</button>';}).join(''):'')+'</div>';
@@ -1385,6 +1385,7 @@ async function findPlayerByUniqueId(raw){
 function GenCopy(v,label){label=label||'Invite link';if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(v).then(function(){ui.err=label+' copied.';render();}).catch(function(){ui.err='Copy failed. Long-press to copy: '+v;render();});else{ui.err='Copy this '+label.toLowerCase()+': '+v;render();}}
 
 async function joinSession(raw,role){
+  ui.joinError='';
   try{
     var sid=String(raw||'').trim();
     var mt=sid.match(/[?&]join=([^&]+)/);
@@ -1477,7 +1478,7 @@ async function joinSession(raw,role){
           d.totalPlayers=1;
         }
 
-        if(d.roster.indexOf(myPlayer.id)<0)d.roster.push(myPlayer.id);d.totalPlayers=Math.max(Number(d.totalPlayers)||0,d.slots.length);rescheduleSessionAfterRosterChange(d);
+        if(d.roster.indexOf(myPlayer.id)<0)d.roster.push(myPlayer.id);d.totalPlayers=Math.max(Number(d.totalPlayers)||0,d.slots.length);await rescheduleSessionAfterRosterChange(d);
       }
     }
 
