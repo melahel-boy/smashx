@@ -308,7 +308,7 @@ var DEFAULT_ADMIN_EMAIL="danijacob20@gmail.com";
 var S={players:[],matches:[],sessions:[]};
 var cloud={api:null,user:null,pending:false,fromCache:true,meTried:false,stops:[]};
 var ui={tab:'score',view:'list',mid:null,pid:null,sid:null,shot:'',next:null,flip:false,fixtureSetup:null,editFixture:null,serverEdit:null,err:'',edit:null,confirm:null,form:{},auth:'loading',pq:'',cx:null,joinId:'',joinRole:'player',playerSearchId:'',playerSearchResult:null,playerSearchError:'',playerSearchBusy:false,slotAdd:null,guestSpectatorSid:null,settingsOpen:false,rulesOpen:false,roundsExpandedSid:null,accountBlocked:false};
-var simpleScore={a:0,b:0,ga:0,gb:0,server:0,target:21,over:false,winner:-1,history:[]};var appPrefs={accent:'green',theme:'dark',sound:false,vibrate:true,awake:false};try{var savedPrefs=JSON.parse(localStorage.getItem('smashx_prefs')||'{}');Object.assign(appPrefs,savedPrefs);if(savedPrefs.target)simpleScore.target=Math.max(1,Math.min(99,Number(savedPrefs.target)||21));}catch(e){}function savePrefs(){try{localStorage.setItem('smashx_prefs',JSON.stringify(appPrefs));}catch(e){}}function applyAccent(){document.documentElement.setAttribute('data-accent',appPrefs.accent||'green');document.documentElement.setAttribute('data-theme',appPrefs.theme==='light'?'light':'dark');}  
+var simpleScore={a:0,b:0,ga:0,gb:0,server:0,target:21,over:false,winner:-1,history:[]};var appPrefs={accent:'green',theme:'dark',sound:false,vibrate:true,awake:false};try{var savedPrefs=JSON.parse(localStorage.getItem('smashx_prefs')||'{}');Object.assign(appPrefs,savedPrefs);if(savedPrefs.target)simpleScore.target=Math.max(1,Math.min(99,Number(savedPrefs.target)||21));}catch(e){}function savePrefs(){try{localStorage.setItem('smashx_prefs',JSON.stringify(appPrefs));}catch(e){}}function applyAccent(){var theme=appPrefs.theme==='light'?'light':'dark';document.documentElement.setAttribute('data-accent',appPrefs.accent||'green');document.documentElement.setAttribute('data-theme',theme);var meta=document.querySelector('meta[name="theme-color"]');if(meta)meta.setAttribute('content',theme==='light'?'#EBF1EE':'#0D1714');applyNativeSystemBars();}  
 function clean(o){return JSON.parse(JSON.stringify(o));}
    function normaliseSessionDoc(d){
   if(!d || !Array.isArray(d.rounds)) return d;
@@ -407,11 +407,12 @@ function onUser(u){
 async function applyNativeSystemBars(){
   try{
     if(!(window.Capacitor&&typeof window.Capacitor.isNativePlatform==='function'&&window.Capacitor.isNativePlatform()))return;
+    var isLight=appPrefs.theme==='light';
     var statusModule=await import('https://esm.sh/@capacitor/status-bar@6.0.2?external=@capacitor/core');
     await statusModule.StatusBar.setOverlaysWebView({overlay:false});
     await statusModule.StatusBar.show();
-    await statusModule.StatusBar.setBackgroundColor({color:'#0D1714'});
-    await statusModule.StatusBar.setStyle({style:'LIGHT'});
+    await statusModule.StatusBar.setBackgroundColor({color:isLight?'#EBF1EE':'#0D1714'});
+    await statusModule.StatusBar.setStyle({style:isLight?'LIGHT':'DARK'});
   }catch(e){console.warn('Could not configure Android system status bar',e);}
 }
 async function bootCloud(){
