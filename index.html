@@ -422,13 +422,16 @@ async function bootCloud(){
     var B='https://www.gstatic.com/firebasejs/10.14.1/';
     var mods=await Promise.all([import(B+'firebase-app.js'),import(B+'firebase-auth.js'),import(B+'firebase-firestore.js')]);
     var A=mods[0],Au=mods[1],F=mods[2];
-    var app=A.initializeApp(CONFIG),auth=Au.getAuth(app),db;
+    var app=A.initializeApp(CONFIG),isNative=!!(window.Capacitor&&typeof window.Capacitor.isNativePlatform==='function'&&window.Capacitor.isNativePlatform()),auth,db;
+    /* Android WebView must use IndexedDB persistence for Firebase JS Auth. */
+    if(isNative){try{auth=Au.initializeAuth(app,{persistence:Au.indexedDBLocalPersistence});}catch(authInitError){auth=Au.getAuth(app);}}
+    else{auth=Au.getAuth(app);}
     try{db=F.initializeFirestore(app,{localCache:F.persistentLocalCache({tabManager:F.persistentMultipleTabManager()})});}
     catch(e){db=F.getFirestore(app);}
     cloud.api={
       onAuth:function(cb){return Au.onAuthStateChanged(auth,cb);},
       signIn:async function(){
-        if(window.Capacitor&&typeof window.Capacitor.isNativePlatform==='function'&&window.Capacitor.isNativePlatform()){
+        if(isNative){
           var nativeModule=await withTimeout(import('https://esm.sh/@capacitor-firebase/authentication@6.3.1?external=@capacitor/core'),20000);
           if(!nativeModule.FirebaseAuthentication||typeof nativeModule.FirebaseAuthentication.signInWithGoogle!=='function')throw new Error('Android Google sign-in plugin did not load. Check internet access and rebuild the Android app.');
           var nativeResult=await withTimeout(nativeModule.FirebaseAuthentication.signInWithGoogle({skipNativeAuth:true}),45000);
