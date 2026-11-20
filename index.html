@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>SmashX</title>
+<script type="importmap">{"imports":{"@capacitor/core":"https://esm.sh/@capacitor/core@6.2.1"}}</script>
 <meta name="theme-color" content="#031021"><link rel="manifest" href="manifest.json"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -402,6 +403,16 @@ function onUser(u){
   cloud.user={uid:u.uid,name:u.displayName||'Player',photo:u.photoURL||'',email:u.email||''};
   ui.auth='in';ui.err='';render();startWatch();
 }
+async function applyNativeSystemBars(){
+  try{
+    if(!(window.Capacitor&&typeof window.Capacitor.isNativePlatform==='function'&&window.Capacitor.isNativePlatform()))return;
+    var statusModule=await import('https://esm.sh/@capacitor/status-bar@6.0.2?external=@capacitor/core');
+    await statusModule.StatusBar.setOverlaysWebView({overlay:false});
+    await statusModule.StatusBar.show();
+    await statusModule.StatusBar.setBackgroundColor({color:'#0D1714'});
+    await statusModule.StatusBar.setStyle({style:'LIGHT'});
+  }catch(e){console.warn('Could not configure Android system status bar',e);}
+}
 async function bootCloud(){
   if(window.__FAKE_CLOUD__){cloud.api=window.__FAKE_CLOUD__;}
   else{
@@ -414,7 +425,17 @@ async function bootCloud(){
     catch(e){db=F.getFirestore(app);}
     cloud.api={
       onAuth:function(cb){return Au.onAuthStateChanged(auth,cb);},
-      signIn:function(){var p=new Au.GoogleAuthProvider();p.setCustomParameters({prompt:'select_account'});return Au.signInWithPopup(auth,p);},
+      signIn:async function(){
+        if(window.Capacitor&&typeof window.Capacitor.isNativePlatform==='function'&&window.Capacitor.isNativePlatform()){
+          var nativeModule=await import('https://esm.sh/@capacitor-firebase/authentication@6.3.1?external=@capacitor/core');
+          var nativeResult=await nativeModule.FirebaseAuthentication.signInWithGoogle({skipNativeAuth:true});
+          var idToken=nativeResult&&nativeResult.credential&&nativeResult.credential.idToken;
+          if(!idToken)throw new Error('Google sign-in did not return an ID token. Check the Firebase Android SHA-1 and Google OAuth configuration.');
+          var credential=Au.GoogleAuthProvider.credential(idToken);
+          return Au.signInWithCredential(auth,credential);
+        }
+        var p=new Au.GoogleAuthProvider();p.setCustomParameters({prompt:'select_account'});return Au.signInWithPopup(auth,p);
+      },
       signOut:function(){return Au.signOut(auth);},
       watch:function(col,next,err){
   return F.onSnapshot(F.collection(db,col),
@@ -1458,7 +1479,8 @@ async function joinSession(raw,role){
   switch(a){
     case 'tab':go(b.dataset.v);break;
     case 'settingsopen':ui.settingsOpen=true;ui.rulesOpen=false;render();break;case 'settingsclose':if(e.target===b){ui.settingsOpen=false;ui.rulesOpen=false;render();}break;case 'rulesopen':ui.rulesOpen=true;render();break;case 'rulesclose':if(e.target===b){ui.rulesOpen=false;render();}break;
-    case 'theme':appPrefs.theme=b.dataset.value==='light'?'light':'dark';savePrefs();applyAccent();render();break;
+    case 'theme':appPrefs.theme=b.dataset.value==='light'?'light':'dark';savePrefs();applyNativeSystemBars();
+applyAccent();render();break;
     case 'guestjoin':joinSession(ui.joinId,'spectator');break;
     case 'simplepoint':if(!simpleScore.over&&(b.dataset.side==='a'||b.dataset.side==='b'))simplePoint(b.dataset.side);break;
     case 'simpleminus':{var sm=b.dataset.side;if((sm==='a'||sm==='b')&&simpleScore[sm]>0&&!simpleScore.over){simpleScore.history.push({a:simpleScore.a,b:simpleScore.b,ga:simpleScore.ga,gb:simpleScore.gb,server:simpleScore.server,over:simpleScore.over,winner:simpleScore.winner});simpleScore[sm]--;render();}break;}
