@@ -1,0 +1,22 @@
+{
+  "name": "smashx",
+  "version": "1.0.6",
+  "private": true,
+  "description": "SmashX badminton scorer — shared root web source packaged with Capacitor",
+  "scripts": {
+    "copy:web": "node scripts/copy-web-assets.mjs",
+    "android:generate": "npm run copy:web && cap add android",
+    "android:sync": "npm run copy:web && cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "6.2.1",
+    "@capacitor/core": "6.2.1",
+    "@capacitor-firebase/authentication": "6.3.1",
+    "@capacitor/status-bar": "6.0.2"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "3.0.5",
+    "@capacitor/cli": "6.2.1",
+    "sharp": "0.33.5"
+  }
+}
