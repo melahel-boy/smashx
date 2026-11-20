@@ -1,20 +1,6 @@
 name: Build SmashX Android APK and Play Store AAB
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'index.html'
-      - 'manifest.json'
-      - 'sw.js'
-      - 'icon-*.png'
-      - 'logo*'
-      - 'google-services.json'
-      - 'package.json'
-      - 'capacitor.config.json'
-      - 'scripts/**'
-      - '.github/workflows/android-apk.yml'
   workflow_dispatch:
 
 concurrency:
