@@ -1479,8 +1479,7 @@ async function joinSession(raw,role){
   switch(a){
     case 'tab':go(b.dataset.v);break;
     case 'settingsopen':ui.settingsOpen=true;ui.rulesOpen=false;render();break;case 'settingsclose':if(e.target===b){ui.settingsOpen=false;ui.rulesOpen=false;render();}break;case 'rulesopen':ui.rulesOpen=true;render();break;case 'rulesclose':if(e.target===b){ui.rulesOpen=false;render();}break;
-    case 'theme':appPrefs.theme=b.dataset.value==='light'?'light':'dark';savePrefs();applyNativeSystemBars();
-applyAccent();render();break;
+    case 'theme':appPrefs.theme=b.dataset.value==='light'?'light':'dark';savePrefs();applyAccent();render();break;
     case 'guestjoin':joinSession(ui.joinId,'spectator');break;
     case 'simplepoint':if(!simpleScore.over&&(b.dataset.side==='a'||b.dataset.side==='b'))simplePoint(b.dataset.side);break;
     case 'simpleminus':{var sm=b.dataset.side;if((sm==='a'||sm==='b')&&simpleScore[sm]>0&&!simpleScore.over){simpleScore.history.push({a:simpleScore.a,b:simpleScore.b,ga:simpleScore.ga,gb:simpleScore.gb,server:simpleScore.server,over:simpleScore.over,winner:simpleScore.winner});simpleScore[sm]--;render();}break;}
@@ -1704,6 +1703,7 @@ document.addEventListener('change',function(e){if(e.target.id==='simple-target')
   }
 });
 
+applyNativeSystemBars();
 applyAccent();render();
 try{var qp=new URLSearchParams(location.search).get('join');if(qp){ui.joinId=qp;ui.err='Choose your role to join this session.';ui.joinPrompt=true;render();}}catch(e){}
 if('serviceWorker' in navigator&&!window.__FAKE_CLOUD__)navigator.serviceWorker.register('sw.js').catch(function(){});
