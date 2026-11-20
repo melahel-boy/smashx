@@ -1,0 +1,8 @@
+{
+  "appId": "com.melahelboy.smashx",
+  "appName": "SmashX",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  }
+}
