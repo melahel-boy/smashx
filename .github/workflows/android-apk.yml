@@ -99,11 +99,11 @@ jobs:
           if "FLAG_FULLSCREEN" not in java:
               java = java.replace(
                   "import com.getcapacitor.BridgeActivity;",
-                  "import com.getcapacitor.BridgeActivity;\\nimport android.os.Bundle;\\nimport android.view.WindowManager;\\nimport androidx.core.view.WindowCompat;"
+                  "import com.getcapacitor.BridgeActivity;\nimport android.os.Bundle;\nimport android.view.WindowManager;\nimport androidx.core.view.WindowCompat;"
               )
               java = java.replace(
                   "public class MainActivity extends BridgeActivity {",
-                  "public class MainActivity extends BridgeActivity {\\n    @Override\\n    public void onCreate(Bundle savedInstanceState) {\\n        super.onCreate(savedInstanceState);\\n        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);\\n        WindowCompat.setDecorFitsSystemWindows(getWindow(), true);\\n    }"
+                  "public class MainActivity extends BridgeActivity {\n    @Override\n    public void onCreate(Bundle savedInstanceState) {\n        super.onCreate(savedInstanceState);\n        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);\n        WindowCompat.setDecorFitsSystemWindows(getWindow(), true);\n    }"
               )
               main_activity.write_text(java)
           icon = Path("android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png")
