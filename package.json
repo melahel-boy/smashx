@@ -1,6 +1,6 @@
 {
   "name": "smashx",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "private": true,
   "description": "SmashX badminton scorer — shared root web source packaged with Capacitor",
   "scripts": {
