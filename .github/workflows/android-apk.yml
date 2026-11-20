@@ -151,13 +151,28 @@ jobs:
       - name: Restore existing SmashX upload keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: |
           test -n "$KEYSTORE_BASE64" || (echo "ANDROID_KEYSTORE_BASE64 secret is missing" && exit 1)
+          test -n "$STORE_PASSWORD" || (echo "ANDROID_KEYSTORE_PASSWORD secret is missing" && exit 1)
+          test -n "$KEY_ALIAS" || (echo "ANDROID_KEY_ALIAS secret is missing" && exit 1)
           mkdir -p android/app
           printf '%s' "$KEYSTORE_BASE64" | base64 --decode > android/app/smashx-upload-key.jks
           test -s android/app/smashx-upload-key.jks
-          keytool -list -keystore android/app/smashx-upload-key.jks -storepass "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" -alias "${{ secrets.ANDROID_KEY_ALIAS }}" >/dev/null
-          echo "Existing upload keystore restored and alias verified."
+          if ! keytool -list -keystore android/app/smashx-upload-key.jks -storepass "$STORE_PASSWORD" > /tmp/smashx-keystore-list.txt 2>&1; then
+            echo "Keystore could not be opened. Check that ANDROID_KEYSTORE_BASE64 and ANDROID_KEYSTORE_PASSWORD come from the same key backup."
+            cat /tmp/smashx-keystore-list.txt
+            exit 1
+          fi
+          if ! keytool -list -keystore android/app/smashx-upload-key.jks -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS" > /tmp/smashx-alias-check.txt 2>&1; then
+            echo "Keystore opened, but ANDROID_KEY_ALIAS was not found. Available entries:"
+            cat /tmp/smashx-keystore-list.txt
+            cat /tmp/smashx-alias-check.txt
+            exit 1
+          fi
+          grep -q "PrivateKeyEntry" /tmp/smashx-alias-check.txt || (echo "The selected alias is not a private key entry." && cat /tmp/smashx-alias-check.txt && exit 1)
+          echo "Existing upload keystore restored; store password, alias, and private-key entry verified."
 
       - name: Configure release signing
         env:
