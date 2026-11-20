@@ -211,6 +211,16 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleRelease
 
+      - name: Build signed Play Store bundle (AAB)
+        env:
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          cd android
+          ./gradlew bundleRelease
+          test -s app/build/outputs/bundle/release/app-release.aab
+
       - name: Verify APK signature and version
         run: |
           APK="android/app/build/outputs/apk/release/app-release.apk"
@@ -221,7 +231,12 @@ jobs:
           test -x "$BUILD_TOOLS/apksigner" || (echo "apksigner is missing from $BUILD_TOOLS" && exit 1)
           "$BUILD_TOOLS/apksigner" verify --verbose "$APK"
           "$BUILD_TOOLS/apksigner" verify --print-certs "$APK" | tee /tmp/apk-cert.txt
-          grep -qi "88:1e:c1:63:0b:0c:90:06:37:d6:2d:2f:46:46:7f:ce:ec:49:c1:fc" /tmp/apk-cert.txt
+          EXPECTED_SHA1="881ec1630b0c900637d62d2f46467fceec49c1fc"
+          if ! tr -d ':' < /tmp/apk-cert.txt | tr 'A-Z' 'a-z' | grep -q "$EXPECTED_SHA1"; then
+            echo "APK is NOT signed with the expected SmashX upload certificate ($EXPECTED_SHA1). Certificate found:"
+            cat /tmp/apk-cert.txt
+            exit 1
+          fi
           echo "Verified APK is signed with the existing SmashX upload certificate."
           "$BUILD_TOOLS/aapt" dump badging "$APK" | grep -E "package:|application-label:"
 
@@ -233,3 +248,10 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - name: Upload Play Store bundle (AAB)
+        uses: actions/upload-artifact@v4
+        with:
+          name: SmashX-Play-Store-AAB
+          path: android/app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 14
